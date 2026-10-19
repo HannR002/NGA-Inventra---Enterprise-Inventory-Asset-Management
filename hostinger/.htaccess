@@ -1,0 +1,36 @@
+# .htaccess for Hostinger Shared Hosting (LiteSpeed / Phusion Passenger Node.js)
+# Place this in public_html or the application root directory
+
+# 1. Enable Rewrite Engine
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Force HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Serve built static files directly if they exist in dist/
+    RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
+    RewriteRule ^(.*)$ dist/$1 [L]
+
+    # Route all other requests to the Node.js application port or passenger socket
+    # If using LiteSpeed Node.js Proxy on port 3000:
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+</IfModule>
+
+# 2. Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# 3. Prevent direct access to sensitive configuration files
+<FilesMatch "^\.(env|git|data)|schema\.prisma|package\.json|init_mysql\.sql">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

@@ -1,0 +1,6 @@
+{
+  "name": "NGA Inventra - Enterprise Inventory & Asset Management",
+  "description": "Enterprise-grade inventory, serialized asset management, stock mutations, and audit trail system with role-based access control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
