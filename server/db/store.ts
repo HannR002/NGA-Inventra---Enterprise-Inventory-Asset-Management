@@ -428,8 +428,8 @@ export class DatabaseStore {
 
       // 2. Validate and Process each item
       for (const row of input.details) {
-        if (row.quantity <= 0) {
-          throw new Error(`Kuantitas item harus lebih besar dari 0.`);
+        if (row.quantity === 0 || (row.quantity < 0 && input.type !== 'ADJUSTMENT')) {
+          throw new Error(`Kuantitas item harus valid dan lebih besar dari 0.`);
         }
 
         const item = db.data.items.find(i => i.id === row.itemId);

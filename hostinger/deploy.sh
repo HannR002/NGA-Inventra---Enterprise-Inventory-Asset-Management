@@ -21,11 +21,8 @@ npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 echo "=== [3/6] Men-generate Prisma Client ==="
 npx prisma generate
 
-echo "=== [4/6] Menjalankan Migrasi Database ke Hostinger MySQL ==="
-npx prisma migrate deploy || {
-  echo "Prisma migrate deploy tidak menemukan migrasi tersimpan. Menjalankan sinkronisasi skema via prisma db push..."
-  npx prisma db push --accept-data-loss
-}
+echo "=== [4/6] Menjalankan Migrasi Database ke Hostinger MySQL via Prisma Migrate ==="
+npx prisma migrate deploy
 
 echo "=== [5/6] Membangun Bundle Frontend Produksi (Vite Build) ==="
 npm run build

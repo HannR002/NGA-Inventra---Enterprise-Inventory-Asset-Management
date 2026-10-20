@@ -292,3 +292,161 @@ test('Serialized Asset Domain Consistency: Stock balance and asset units cannot 
   const availableAssets = db.getAssetUnits().filter(a => a.itemId === serializedItem.id && a.status === 'AVAILABLE');
   assert.equal(availableAssets.length, 1);
 });
+
+test('Idempotency & Duplicate Prevention: Re-submitting same idempotencyKey returns existing movement without extra deduction', async () => {
+  const db = new DatabaseStore();
+  const wh = db.getWarehouses()[0];
+
+  const item = db.createItem({
+    sku: `IDEMP-DB-${Date.now()}`,
+    barcode: '',
+    name: 'Idempotent DB Test Item',
+    description: '',
+    categoryId: 'cat-pck',
+    unitId: 'u-pcs',
+    itemType: 'CONSUMABLE',
+    currentStock: 40,
+    minStock: 5,
+    maxStock: 50,
+    reorderPoint: 10,
+    safetyStock: 2,
+    unitCost: 10000,
+    unitPrice: 15000,
+    isActive: true
+  });
+
+  const idempotencyKey = `KEY-STAGING-${Date.now()}`;
+
+  // First execution
+  const mov1 = await db.executeStockMovement({
+    type: 'OUT',
+    sourceWarehouseId: wh.id,
+    idempotencyKey,
+    createdByUserId: 'usr-admin-01',
+    details: [{ itemId: item.id, quantity: 8 }]
+  });
+
+  assert.equal(mov1.idempotencyKey, idempotencyKey);
+  const stockAfterFirst = db.getItemById(item.id)!.currentStock;
+  assert.equal(stockAfterFirst, 32);
+
+  // Duplicate retry with same idempotency key (simulating network retry or double-click)
+  const mov2 = await db.executeStockMovement({
+    type: 'OUT',
+    sourceWarehouseId: wh.id,
+    idempotencyKey,
+    createdByUserId: 'usr-admin-01',
+    details: [{ itemId: item.id, quantity: 8 }]
+  });
+
+  assert.equal(mov2.id, mov1.id, 'Duplicate call must return original movement ID');
+  const stockAfterSecond = db.getItemById(item.id)!.currentStock;
+  assert.equal(stockAfterSecond, 32, 'Stock must NOT be deducted twice');
+});
+
+test('Transfer Mutation Conservation: Stock transferred between warehouses preserves total global balance', async () => {
+  const db = new DatabaseStore();
+  const warehouses = db.getWarehouses();
+  assert.ok(warehouses.length >= 2, 'Must have at least 2 warehouses for transfer test');
+  const [sourceWh, targetWh] = warehouses;
+
+  const item = db.createItem({
+    sku: `TRF-CONSERV-${Date.now()}`,
+    barcode: '',
+    name: 'Transfer Conservation Item',
+    description: '',
+    categoryId: 'cat-net',
+    unitId: 'u-pcs',
+    itemType: 'CONSUMABLE',
+    currentStock: 50,
+    minStock: 5,
+    maxStock: 100,
+    reorderPoint: 10,
+    safetyStock: 2,
+    unitCost: 20000,
+    unitPrice: 30000,
+    isActive: true
+  });
+
+  const initialGlobalStock = item.currentStock;
+  const initialSourceBal = db.getStockBalance(item.id, sourceWh.id)?.quantity || 0;
+  const initialTargetBal = db.getStockBalance(item.id, targetWh.id)?.quantity || 0;
+
+  // Transfer 15 units from source to target
+  await db.executeStockMovement({
+    type: 'TRANSFER',
+    sourceWarehouseId: sourceWh.id,
+    targetWarehouseId: targetWh.id,
+    createdByUserId: 'usr-admin-01',
+    details: [{ itemId: item.id, quantity: 15 }]
+  });
+
+  const finalSourceBal = db.getStockBalance(item.id, sourceWh.id)?.quantity || 0;
+  const finalTargetBal = db.getStockBalance(item.id, targetWh.id)?.quantity || 0;
+  const finalGlobalStock = db.getItemById(item.id)!.currentStock;
+
+  assert.equal(finalSourceBal, initialSourceBal - 15, 'Source warehouse must decrement by transfer amount');
+  assert.equal(finalTargetBal, initialTargetBal + 15, 'Target warehouse must increment by transfer amount');
+  assert.equal(finalGlobalStock, initialGlobalStock, 'Global inventory sum across all warehouses must remain strictly conserved');
+});
+
+test('Stock Opname & Discrepancy Reconciliation: Records variance and adjusts stock accurately', async () => {
+  const db = new DatabaseStore();
+  const wh = db.getWarehouses()[0];
+
+  const item = db.createItem({
+    sku: `OPN-TEST-${Date.now()}`,
+    barcode: '',
+    name: 'Opname Test Item',
+    description: '',
+    categoryId: 'cat-pck',
+    unitId: 'u-pcs',
+    itemType: 'CONSUMABLE',
+    currentStock: 25,
+    minStock: 5,
+    maxStock: 50,
+    reorderPoint: 10,
+    safetyStock: 2,
+    unitCost: 10000,
+    unitPrice: 15000,
+    isActive: true
+  });
+
+  // Physical stock count discovered only 22 items (-3 discrepancy)
+  const systemStock = 25;
+  const physicalStock = 22;
+  const difference = physicalStock - systemStock; // -3
+  const discrepancyValue = difference * item.unitCost;
+
+  const opname = db.createStockOpname({
+    warehouseId: wh.id,
+    scheduledDate: new Date().toISOString().slice(0, 10),
+    status: 'COMPLETED',
+    notes: 'Q1 Regular Audit Reconciliation',
+    details: [{
+      id: 'opnd-1',
+      opnameId: 'opn-1',
+      itemId: item.id,
+      systemStock,
+      physicalStock,
+      difference,
+      unitCost: item.unitCost,
+      discrepancyValue
+    }]
+  });
+
+  assert.equal(opname.warehouseId, wh.id);
+  assert.equal(opname.details![0].difference, -3);
+
+  // Reconcile via ADJUSTMENT movement
+  await db.executeStockMovement({
+    type: 'ADJUSTMENT',
+    sourceWarehouseId: wh.id,
+    createdByUserId: 'usr-admin-01',
+    notes: `Penyesuaian hasil stock opname ${opname.opnameNumber}`,
+    details: [{ itemId: item.id, quantity: difference }]
+  });
+
+  const reconciledStock = db.getItemById(item.id)!.currentStock;
+  assert.equal(reconciledStock, physicalStock, 'Reconciled stock must match physical stock count');
+});

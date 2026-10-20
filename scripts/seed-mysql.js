@@ -1,0 +1,975 @@
+// scripts/seed-mysql.ts
+import { PrismaClient } from "@prisma/client";
+
+// server/security/auth.ts
+import crypto from "crypto";
+var isProduction = process.env.NODE_ENV === "production";
+var rawSecret = process.env.JWT_SECRET;
+var INSECURE_DEFAULT_SECRET = "inventra_enterprise_secure_jwt_secret_key_2026";
+if (isProduction) {
+  if (!rawSecret || rawSecret === INSECURE_DEFAULT_SECRET || rawSecret.trim().length < 32) {
+    throw new Error(
+      "[FATAL SECURITY CONFIGURATION] In production mode (NODE_ENV=production), process.env.JWT_SECRET is REQUIRED and must be a unique, high-entropy secret string of at least 32 characters. Default/fallback keys are strictly rejected."
+    );
+  }
+}
+var OWASP_PBKDF2_ITERATIONS = 21e4;
+function hashPassword(password) {
+  if (!password || typeof password !== "string") {
+    throw new Error("Password must be a non-empty string");
+  }
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(password, salt, OWASP_PBKDF2_ITERATIONS, 64, "sha512").toString("hex");
+  return `pbkdf2:sha512:${OWASP_PBKDF2_ITERATIONS}:${salt}:${hash}`;
+}
+
+// server/db/seedData.ts
+function getInitialSeedData() {
+  const users = [
+    {
+      id: "usr-admin-01",
+      email: "admin@nga-inventra.com",
+      passwordHash: hashPassword("AdminSecurePass2026!"),
+      name: "Budi Pratama (Super Admin)",
+      role: "SUPER_ADMIN",
+      department: "Executive Operations",
+      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      isActive: true,
+      createdAt: "2026-01-10T08:00:00.000Z",
+      updatedAt: "2026-01-10T08:00:00.000Z"
+    },
+    {
+      id: "usr-mgr-01",
+      email: "manager@nga-inventra.com",
+      passwordHash: hashPassword("ManagerPass2026!"),
+      name: "Dewi Kartika (Warehouse Mgr)",
+      role: "WAREHOUSE_MANAGER",
+      department: "Supply Chain & Logistics",
+      avatarUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150",
+      isActive: true,
+      createdAt: "2026-01-11T09:00:00.000Z",
+      updatedAt: "2026-01-11T09:00:00.000Z"
+    },
+    {
+      id: "usr-staff-01",
+      email: "staff@nga-inventra.com",
+      passwordHash: hashPassword("StaffPass2026!"),
+      name: "Rian Hidayat (Inventory Staff)",
+      role: "INVENTORY_STAFF",
+      department: "Central Fulfillment",
+      avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+      isActive: true,
+      createdAt: "2026-01-12T10:00:00.000Z",
+      updatedAt: "2026-01-12T10:00:00.000Z"
+    },
+    {
+      id: "usr-cust-01",
+      email: "custodian@nga-inventra.com",
+      passwordHash: hashPassword("CustodianPass2026!"),
+      name: "Siti Rahma (IT Custodian)",
+      role: "ASSET_CUSTODIAN",
+      department: "Information Technology",
+      avatarUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150",
+      isActive: true,
+      createdAt: "2026-01-14T11:00:00.000Z",
+      updatedAt: "2026-01-14T11:00:00.000Z"
+    },
+    {
+      id: "usr-audit-01",
+      email: "auditor@nga-inventra.com",
+      passwordHash: hashPassword("AuditorPass2026!"),
+      name: "Hendra Gunawan (Internal Auditor)",
+      role: "AUDITOR",
+      department: "Compliance & Audit",
+      avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
+      isActive: true,
+      createdAt: "2026-01-15T12:00:00.000Z",
+      updatedAt: "2026-01-15T12:00:00.000Z"
+    }
+  ];
+  const categories = [
+    { id: "cat-it-hw", code: "IT-HW", name: "IT Hardware & Peripherals", description: "Perangkat keras komputer, server, dan aksesoris digital", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "cat-net", code: "NET-EQ", name: "Networking Equipment", description: "Switch, router, access point, dan kabel jaringan", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "cat-mhe", code: "MHE-WH", name: "Material Handling Equipment", description: "Forklift, pallet jack, racking equipment gudang", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "cat-pck", code: "PCK-MAT", name: "Packaging & Consumables", description: "Kardus, bubble wrap, stretch film, thermal roll", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "cat-off", code: "OFF-SUP", name: "Office Supplies & Stationeries", description: "Alat tulis kantor dan perlengkapan administrasi", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "cat-sft", code: "SFT-PPE", name: "Safety & PPE", description: "Helm keselamatan, rompi reflektor, sarung tangan kerja", createdAt: "2026-01-01T00:00:00.000Z" }
+  ];
+  const units = [
+    { id: "u-pcs", name: "Pieces", symbol: "PCS", description: "Satuan per buah atau unit" },
+    { id: "u-box", name: "Box", symbol: "BOX", description: "Kemasan kotak berisi multi item" },
+    { id: "u-roll", name: "Roll", symbol: "ROLL", description: "Satuan gulungan" },
+    { id: "u-pack", name: "Pack", symbol: "PACK", description: "Paket bundling" },
+    { id: "u-set", name: "Set", symbol: "SET", description: "Satu set perlengkapan lengkap" }
+  ];
+  const suppliers = [
+    {
+      id: "sup-01",
+      code: "SUP-ASTRA",
+      name: "PT Mitra Solusi Teknologi",
+      contactName: "Agus Wijaya",
+      email: "sales@mitratech.co.id",
+      phone: "+62-21-555-8891",
+      address: "Kawasan Industri Pulogadung Blok B No. 4",
+      city: "Jakarta Timur",
+      rating: 4.9,
+      isActive: true,
+      createdAt: "2026-01-02T00:00:00.000Z"
+    },
+    {
+      id: "sup-02",
+      code: "SUP-LOGIS",
+      name: "PT Samudera Logistik Sarana",
+      contactName: "Ferry Santoso",
+      email: "order@samuderalogistik.id",
+      phone: "+62-31-778-1200",
+      address: "Jl. Tanjung Perak Barat No. 88",
+      city: "Surabaya",
+      rating: 4.8,
+      isActive: true,
+      createdAt: "2026-01-03T00:00:00.000Z"
+    },
+    {
+      id: "sup-03",
+      code: "SUP-PACK",
+      name: "CV Prima Multi Packaging",
+      contactName: "Linda Hartanto",
+      email: "inquiry@primapack.com",
+      phone: "+62-21-889-4321",
+      address: "Jl. Raya Narogong Km 12",
+      city: "Bekasi",
+      rating: 4.7,
+      isActive: true,
+      createdAt: "2026-01-04T00:00:00.000Z"
+    }
+  ];
+  const warehouses = [
+    {
+      id: "wh-jkt-main",
+      code: "WH-JKT-01",
+      name: "Central Distribution Center (CDC)",
+      branch: "Jakarta Hub",
+      address: "Kawasan Pergudangan Marunda Center Kav. 12, Jakarta Utara",
+      capacityCbm: 15e3,
+      managerId: "usr-mgr-01",
+      managerName: "Dewi Kartika",
+      isActive: true,
+      createdAt: "2026-01-01T00:00:00.000Z"
+    },
+    {
+      id: "wh-sby-hub",
+      code: "WH-SBY-02",
+      name: "East Java Regional Fulfillment",
+      branch: "Surabaya Hub",
+      address: "Jl. Rungkut Industri Raya No. 45, Surabaya",
+      capacityCbm: 8500,
+      managerId: "usr-mgr-01",
+      managerName: "Dewi Kartika",
+      isActive: true,
+      createdAt: "2026-01-01T00:00:00.000Z"
+    },
+    {
+      id: "wh-bpp-hub",
+      code: "WH-BPP-03",
+      name: "Borneo Logistics Depot",
+      branch: "Balikpapan Branch",
+      address: "Jl. Mulawarman Batakan Km 14, Balikpapan",
+      capacityCbm: 5e3,
+      managerId: "usr-mgr-01",
+      managerName: "Dewi Kartika",
+      isActive: true,
+      createdAt: "2026-01-05T00:00:00.000Z"
+    },
+    {
+      id: "wh-med-hub",
+      code: "WH-MED-04",
+      name: "Sumatra Regional Depot",
+      branch: "Medan Branch",
+      address: "Kawasan Industri Medan (KIM) II, Deli Serdang",
+      capacityCbm: 6e3,
+      managerId: "usr-mgr-01",
+      managerName: "Dewi Kartika",
+      isActive: true,
+      createdAt: "2026-01-05T00:00:00.000Z"
+    }
+  ];
+  const locations = [
+    { id: "loc-01", warehouseId: "wh-jkt-main", code: "A1-R01-S01", aisle: "A1", rack: "R01", shelf: "S01", bin: "B01" },
+    { id: "loc-02", warehouseId: "wh-jkt-main", code: "A1-R01-S02", aisle: "A1", rack: "R01", shelf: "S02", bin: "B02" },
+    { id: "loc-03", warehouseId: "wh-jkt-main", code: "B2-R04-S01", aisle: "B2", rack: "R04", shelf: "S01", bin: "B01" },
+    { id: "loc-04", warehouseId: "wh-sby-hub", code: "S1-R02-S01", aisle: "S1", rack: "R02", shelf: "S01", bin: "B01" }
+  ];
+  const items = [
+    // Consumable items
+    {
+      id: "itm-cbl-cat6",
+      sku: "SKU-CON-NET-001",
+      barcode: "899100200301",
+      name: "Kabel UTP Belden Cat6 305M Roll",
+      description: "Kabel jaringan Gigabit Ethernet UTP Cat6 kualitas industri",
+      categoryId: "cat-net",
+      categoryName: "Networking Equipment",
+      unitId: "u-roll",
+      unitSymbol: "ROLL",
+      supplierId: "sup-01",
+      supplierName: "PT Mitra Solusi Teknologi",
+      itemType: "CONSUMABLE",
+      currentStock: 48,
+      minStock: 15,
+      maxStock: 100,
+      reorderPoint: 25,
+      safetyStock: 10,
+      unitCost: 185e4,
+      unitPrice: 22e5,
+      specifications: { "Standar": "ANSI/TIA-568-C.2", "Panjang": "305 Meter", "Kecepatan": "1000 Mbps" },
+      isActive: true,
+      createdAt: "2026-01-10T00:00:00.000Z",
+      updatedAt: "2026-10-15T00:00:00.000Z"
+    },
+    {
+      id: "itm-thm-paper",
+      sku: "SKU-CON-PCK-002",
+      barcode: "899100200302",
+      name: "Kertas Thermal Roll 80x80mm Coreless",
+      description: "Kertas struk kasir dan barcode printer high sensitivity",
+      categoryId: "cat-pck",
+      categoryName: "Packaging & Consumables",
+      unitId: "u-roll",
+      unitSymbol: "ROLL",
+      supplierId: "sup-03",
+      supplierName: "CV Prima Multi Packaging",
+      itemType: "CONSUMABLE",
+      currentStock: 12,
+      // LOW STOCK! Below minStock 20!
+      minStock: 20,
+      maxStock: 200,
+      reorderPoint: 35,
+      safetyStock: 15,
+      unitCost: 14500,
+      unitPrice: 19e3,
+      specifications: { "Ukuran": "80mm x 80mm", "Bahan": "Thermal Paper 65gsm" },
+      isActive: true,
+      createdAt: "2026-01-10T00:00:00.000Z",
+      updatedAt: "2026-10-16T00:00:00.000Z"
+    },
+    {
+      id: "itm-box-l",
+      sku: "SKU-CON-PCK-003",
+      barcode: "899100200303",
+      name: "Corrugated Box Ekspor Ukuran L (60x40x40cm)",
+      description: "Kardus packing double wall tahan tekanan beban tumpukan",
+      categoryId: "cat-pck",
+      categoryName: "Packaging & Consumables",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-03",
+      supplierName: "CV Prima Multi Packaging",
+      itemType: "CONSUMABLE",
+      currentStock: 450,
+      minStock: 100,
+      maxStock: 1e3,
+      reorderPoint: 200,
+      safetyStock: 50,
+      unitCost: 28e3,
+      unitPrice: 35e3,
+      specifications: { "Dimensi": "60 x 40 x 40 cm", "Ply": "Double Wall (CB Flute)" },
+      isActive: true,
+      createdAt: "2026-01-11T00:00:00.000Z",
+      updatedAt: "2026-10-14T00:00:00.000Z"
+    },
+    {
+      id: "itm-str-film",
+      sku: "SKU-CON-PCK-004",
+      barcode: "899100200304",
+      name: "Stretch Film Pallet Wrapping 50cm x 300m",
+      description: "Plastik wrapping pembungkus pallet anti sobek dan rekat",
+      categoryId: "cat-pck",
+      categoryName: "Packaging & Consumables",
+      unitId: "u-roll",
+      unitSymbol: "ROLL",
+      supplierId: "sup-03",
+      supplierName: "CV Prima Multi Packaging",
+      itemType: "CONSUMABLE",
+      currentStock: 85,
+      minStock: 30,
+      maxStock: 300,
+      reorderPoint: 50,
+      safetyStock: 20,
+      unitCost: 75e3,
+      unitPrice: 92e3,
+      specifications: { "Lebar": "50 cm", "Ketebalan": "17 Micron" },
+      isActive: true,
+      createdAt: "2026-01-12T00:00:00.000Z",
+      updatedAt: "2026-10-12T00:00:00.000Z"
+    },
+    {
+      id: "itm-sft-vest",
+      sku: "SKU-CON-SFT-005",
+      barcode: "899100200305",
+      name: "Rompi Safety Jaring Reflektor Hi-Vis Orange",
+      description: "Rompi standar keselamatan kerja lapangan dan operasional gudang",
+      categoryId: "cat-sft",
+      categoryName: "Safety & PPE",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-02",
+      supplierName: "PT Samudera Logistik Sarana",
+      itemType: "CONSUMABLE",
+      currentStock: 5,
+      // CRITICAL STOCK! Min stock is 20!
+      minStock: 20,
+      maxStock: 150,
+      reorderPoint: 30,
+      safetyStock: 10,
+      unitCost: 35e3,
+      unitPrice: 48e3,
+      specifications: { "Warna": "Hi-Vis Orange", "Standar": "EN ISO 20471" },
+      isActive: true,
+      createdAt: "2026-01-15T00:00:00.000Z",
+      updatedAt: "2026-10-16T00:00:00.000Z"
+    },
+    {
+      id: "itm-sft-hlm",
+      sku: "SKU-CON-SFT-006",
+      barcode: "899100200306",
+      name: "Safety Helmet V-Gard Putih SNI",
+      description: "Helm pelindung kepala pekerja lapangan dengan suspensi ratchet",
+      categoryId: "cat-sft",
+      categoryName: "Safety & PPE",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-02",
+      supplierName: "PT Samudera Logistik Sarana",
+      itemType: "CONSUMABLE",
+      currentStock: 42,
+      minStock: 15,
+      maxStock: 100,
+      reorderPoint: 25,
+      safetyStock: 10,
+      unitCost: 85e3,
+      unitPrice: 11e4,
+      specifications: { "Warna": "Putih", "Sertifikasi": "SNI 0108:2015" },
+      isActive: true,
+      createdAt: "2026-01-15T00:00:00.000Z",
+      updatedAt: "2026-10-10T00:00:00.000Z"
+    },
+    // Serialized Asset parent master items (ItemType: SERIALIZED_ASSET)
+    {
+      id: "itm-ast-mbp16",
+      sku: "SKU-AST-IT-010",
+      barcode: "899100200310",
+      name: 'Apple MacBook Pro 16" M3 Max 36GB/1TB',
+      description: "Laptop enterprise untuk engineering dan data architecture",
+      categoryId: "cat-it-hw",
+      categoryName: "IT Hardware & Peripherals",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-01",
+      supplierName: "PT Mitra Solusi Teknologi",
+      itemType: "SERIALIZED_ASSET",
+      currentStock: 4,
+      minStock: 2,
+      maxStock: 10,
+      reorderPoint: 3,
+      safetyStock: 1,
+      unitCost: 485e5,
+      unitPrice: 52e6,
+      specifications: { "Chip": "Apple M3 Max 14-core", "RAM": "36GB Unified", "SSD": "1TB NVMe" },
+      isActive: true,
+      createdAt: "2026-01-20T00:00:00.000Z",
+      updatedAt: "2026-10-01T00:00:00.000Z"
+    },
+    {
+      id: "itm-ast-dell7440",
+      sku: "SKU-AST-IT-011",
+      barcode: "899100200311",
+      name: "Dell Latitude 7440 Core i7-1365U 16GB/512GB",
+      description: "Laptop standar operasional staf manajemen dan supervisor",
+      categoryId: "cat-it-hw",
+      categoryName: "IT Hardware & Peripherals",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-01",
+      supplierName: "PT Mitra Solusi Teknologi",
+      itemType: "SERIALIZED_ASSET",
+      currentStock: 6,
+      minStock: 3,
+      maxStock: 20,
+      reorderPoint: 5,
+      safetyStock: 2,
+      unitCost: 245e5,
+      unitPrice: 27e6,
+      specifications: { "Processor": "Intel Core i7-1365U", "RAM": "16GB DDR5", "Storage": "512GB PCIe Gen4" },
+      isActive: true,
+      createdAt: "2026-01-20T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z"
+    },
+    {
+      id: "itm-ast-zebra-tc26",
+      sku: "SKU-AST-IT-012",
+      barcode: "899100200312",
+      name: "Zebra TC26 Mobile Touch Computer Scanner 2D",
+      description: "Handheld scanner barcode 2D tangguh untuk operator gudang",
+      categoryId: "cat-it-hw",
+      categoryName: "IT Hardware & Peripherals",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-01",
+      supplierName: "PT Mitra Solusi Teknologi",
+      itemType: "SERIALIZED_ASSET",
+      currentStock: 8,
+      minStock: 4,
+      maxStock: 25,
+      reorderPoint: 6,
+      safetyStock: 2,
+      unitCost: 112e5,
+      unitPrice: 135e5,
+      specifications: { "OS": "Android 11 Enterprise", "Scanner": "SE4710 1D/2D Imager", "IP": "IP67" },
+      isActive: true,
+      createdAt: "2026-02-01T00:00:00.000Z",
+      updatedAt: "2026-10-05T00:00:00.000Z"
+    },
+    {
+      id: "itm-ast-cisco9200",
+      sku: "SKU-AST-NET-013",
+      barcode: "899100200313",
+      name: "Cisco Catalyst 9200L 48-Port PoE+ Gigabit Switch",
+      description: "Switch jaringan core enterprise dengan uplink 4x10G SFP+",
+      categoryId: "cat-net",
+      categoryName: "Networking Equipment",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-01",
+      supplierName: "PT Mitra Solusi Teknologi",
+      itemType: "SERIALIZED_ASSET",
+      currentStock: 3,
+      minStock: 1,
+      maxStock: 8,
+      reorderPoint: 2,
+      safetyStock: 1,
+      unitCost: 56e6,
+      unitPrice: 64e6,
+      specifications: { "Ports": "48 PoE+ Ports", "PoE Budget": "740W", "Uplink": "4x 10G SFP+" },
+      isActive: true,
+      createdAt: "2026-02-01T00:00:00.000Z",
+      updatedAt: "2026-09-20T00:00:00.000Z"
+    },
+    {
+      id: "itm-ast-forklift",
+      sku: "SKU-AST-MHE-014",
+      barcode: "899100200314",
+      name: "Toyota Electric Reach Truck Forklift 2.5 Ton 6M",
+      description: "Armada angkut palet ketinggian 6 meter bertenaga baterai lithium",
+      categoryId: "cat-mhe",
+      categoryName: "Material Handling Equipment",
+      unitId: "u-pcs",
+      unitSymbol: "PCS",
+      supplierId: "sup-02",
+      supplierName: "PT Samudera Logistik Sarana",
+      itemType: "SERIALIZED_ASSET",
+      currentStock: 2,
+      minStock: 1,
+      maxStock: 5,
+      reorderPoint: 1,
+      safetyStock: 1,
+      unitCost: 385e6,
+      unitPrice: 42e7,
+      specifications: { "Kapasitas": "2,500 Kg", "Mast Height": "6.0 Meter", "Power": "48V Li-ion Battery" },
+      isActive: true,
+      createdAt: "2026-02-10T00:00:00.000Z",
+      updatedAt: "2026-08-15T00:00:00.000Z"
+    }
+  ];
+  const stockBalances = [
+    // UTP Cable
+    { id: "sb-01", itemId: "itm-cbl-cat6", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 30, reservedQty: 0, updatedAt: "2026-10-15T00:00:00.000Z" },
+    { id: "sb-02", itemId: "itm-cbl-cat6", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 18, reservedQty: 0, updatedAt: "2026-10-15T00:00:00.000Z" },
+    // Thermal paper (low stock!)
+    { id: "sb-03", itemId: "itm-thm-paper", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 12, reservedQty: 0, updatedAt: "2026-10-16T00:00:00.000Z" },
+    // Corrugated Box
+    { id: "sb-04", itemId: "itm-box-l", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 350, reservedQty: 0, updatedAt: "2026-10-14T00:00:00.000Z" },
+    { id: "sb-05", itemId: "itm-box-l", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 100, reservedQty: 0, updatedAt: "2026-10-14T00:00:00.000Z" },
+    // Stretch Film
+    { id: "sb-06", itemId: "itm-str-film", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 60, reservedQty: 0, updatedAt: "2026-10-12T00:00:00.000Z" },
+    { id: "sb-07", itemId: "itm-str-film", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 25, reservedQty: 0, updatedAt: "2026-10-12T00:00:00.000Z" },
+    // Safety Vest (critical stock!)
+    { id: "sb-08", itemId: "itm-sft-vest", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 5, reservedQty: 0, updatedAt: "2026-10-16T00:00:00.000Z" },
+    // Helm
+    { id: "sb-09", itemId: "itm-sft-hlm", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 30, reservedQty: 0, updatedAt: "2026-10-10T00:00:00.000Z" },
+    { id: "sb-10", itemId: "itm-sft-hlm", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 12, reservedQty: 0, updatedAt: "2026-10-10T00:00:00.000Z" },
+    // MacBook Pro 16
+    { id: "sb-11", itemId: "itm-ast-mbp16", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 4, reservedQty: 0, updatedAt: "2026-10-01T00:00:00.000Z" },
+    // Dell Latitude
+    { id: "sb-12", itemId: "itm-ast-dell7440", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 4, reservedQty: 0, updatedAt: "2026-10-02T00:00:00.000Z" },
+    { id: "sb-13", itemId: "itm-ast-dell7440", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 2, reservedQty: 0, updatedAt: "2026-10-02T00:00:00.000Z" },
+    // Zebra TC26
+    { id: "sb-14", itemId: "itm-ast-zebra-tc26", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 5, reservedQty: 0, updatedAt: "2026-10-05T00:00:00.000Z" },
+    { id: "sb-15", itemId: "itm-ast-zebra-tc26", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 3, reservedQty: 0, updatedAt: "2026-10-05T00:00:00.000Z" },
+    // Cisco switch
+    { id: "sb-16", itemId: "itm-ast-cisco9200", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 2, reservedQty: 0, updatedAt: "2026-09-20T00:00:00.000Z" },
+    { id: "sb-17", itemId: "itm-ast-cisco9200", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 1, reservedQty: 0, updatedAt: "2026-09-20T00:00:00.000Z" },
+    // Forklift
+    { id: "sb-18", itemId: "itm-ast-forklift", warehouseId: "wh-jkt-main", warehouseCode: "WH-JKT-01", warehouseName: "Central Distribution Center (CDC)", quantity: 1, reservedQty: 0, updatedAt: "2026-08-15T00:00:00.000Z" },
+    { id: "sb-19", itemId: "itm-ast-forklift", warehouseId: "wh-sby-hub", warehouseCode: "WH-SBY-02", warehouseName: "East Java Regional Fulfillment", quantity: 1, reservedQty: 0, updatedAt: "2026-08-15T00:00:00.000Z" }
+  ];
+  const assetUnits = [
+    {
+      id: "ast-u-001",
+      assetTag: "AST-2026-0001",
+      serialNumber: "SN-APL-C02GF928MD6R",
+      itemId: "itm-ast-mbp16",
+      itemName: 'Apple MacBook Pro 16" M3 Max 36GB/1TB',
+      itemSku: "SKU-AST-IT-010",
+      warehouseId: "wh-jkt-main",
+      warehouseName: "Central Distribution Center (CDC)",
+      locationId: "loc-01",
+      locationCode: "A1-R01-S01",
+      status: "ASSIGNED",
+      condition: "EXCELLENT",
+      assignedToUserId: "usr-admin-01",
+      assignedToUserName: "Budi Pratama (Super Admin)",
+      department: "Executive Operations",
+      purchaseDate: "2026-02-15",
+      purchaseCost: 485e5,
+      warrantyExpiry: "2029-02-15",
+      notes: "Diserahkan dalam kondisi baru dengan AppleCare+ 3 Tahun.",
+      createdAt: "2026-02-15T00:00:00.000Z",
+      updatedAt: "2026-02-15T00:00:00.000Z"
+    },
+    {
+      id: "ast-u-002",
+      assetTag: "AST-2026-0002",
+      serialNumber: "SN-APL-C02HH391MD6S",
+      itemId: "itm-ast-mbp16",
+      itemName: 'Apple MacBook Pro 16" M3 Max 36GB/1TB',
+      itemSku: "SKU-AST-IT-010",
+      warehouseId: "wh-jkt-main",
+      warehouseName: "Central Distribution Center (CDC)",
+      locationId: "loc-01",
+      locationCode: "A1-R01-S01",
+      status: "AVAILABLE",
+      condition: "NEW",
+      purchaseDate: "2026-02-15",
+      purchaseCost: 485e5,
+      warrantyExpiry: "2029-02-15",
+      notes: "Stok cadangan IT di brankas server room CDC.",
+      createdAt: "2026-02-15T00:00:00.000Z",
+      updatedAt: "2026-02-15T00:00:00.000Z"
+    },
+    {
+      id: "ast-u-003",
+      assetTag: "AST-2026-0003",
+      serialNumber: "SN-DLL-8F74B291",
+      itemId: "itm-ast-dell7440",
+      itemName: "Dell Latitude 7440 Core i7-1365U 16GB/512GB",
+      itemSku: "SKU-AST-IT-011",
+      warehouseId: "wh-jkt-main",
+      warehouseName: "Central Distribution Center (CDC)",
+      status: "ASSIGNED",
+      condition: "GOOD",
+      assignedToUserId: "usr-mgr-01",
+      assignedToUserName: "Dewi Kartika (Warehouse Mgr)",
+      department: "Supply Chain & Logistics",
+      purchaseDate: "2026-03-01",
+      purchaseCost: 245e5,
+      warrantyExpiry: "2029-03-01",
+      notes: "Laptop operasional Warehouse Manager CDC Jakarta.",
+      createdAt: "2026-03-01T00:00:00.000Z",
+      updatedAt: "2026-03-01T00:00:00.000Z"
+    },
+    {
+      id: "ast-u-004",
+      assetTag: "AST-2026-0004",
+      serialNumber: "SN-ZBR-2231052044",
+      itemId: "itm-ast-zebra-tc26",
+      itemName: "Zebra TC26 Mobile Touch Computer Scanner 2D",
+      itemSku: "SKU-AST-IT-012",
+      warehouseId: "wh-jkt-main",
+      warehouseName: "Central Distribution Center (CDC)",
+      status: "ASSIGNED",
+      condition: "GOOD",
+      assignedToUserId: "usr-staff-01",
+      assignedToUserName: "Rian Hidayat (Inventory Staff)",
+      department: "Central Fulfillment",
+      purchaseDate: "2026-03-10",
+      purchaseCost: 112e5,
+      warrantyExpiry: "2028-03-10",
+      notes: "Scanner utama untuk Goods Inbound & Picking di CDC.",
+      createdAt: "2026-03-10T00:00:00.000Z",
+      updatedAt: "2026-03-10T00:00:00.000Z"
+    },
+    {
+      id: "ast-u-005",
+      assetTag: "AST-2026-0005",
+      serialNumber: "SN-ZBR-2231052045",
+      itemId: "itm-ast-zebra-tc26",
+      itemName: "Zebra TC26 Mobile Touch Computer Scanner 2D",
+      itemSku: "SKU-AST-IT-012",
+      warehouseId: "wh-jkt-main",
+      warehouseName: "Central Distribution Center (CDC)",
+      status: "IN_MAINTENANCE",
+      condition: "FAIR",
+      department: "Central Fulfillment",
+      purchaseDate: "2026-03-10",
+      purchaseCost: 112e5,
+      warrantyExpiry: "2028-03-10",
+      notes: "Sedang kalibrasi trigger scan laser di vendor resmi Zebra.",
+      createdAt: "2026-03-10T00:00:00.000Z",
+      updatedAt: "2026-10-10T00:00:00.000Z"
+    },
+    {
+      id: "ast-u-006",
+      assetTag: "AST-2026-0006",
+      serialNumber: "SN-TYT-FL882901J",
+      itemId: "itm-ast-forklift",
+      itemName: "Toyota Electric Reach Truck Forklift 2.5 Ton 6M",
+      itemSku: "SKU-AST-MHE-014",
+      warehouseId: "wh-jkt-main",
+      warehouseName: "Central Distribution Center (CDC)",
+      status: "AVAILABLE",
+      condition: "EXCELLENT",
+      department: "Operations",
+      purchaseDate: "2026-01-05",
+      purchaseCost: 385e6,
+      warrantyExpiry: "2031-01-05",
+      notes: "Layanan servis rutin berkala setiap 500 jam operasi.",
+      createdAt: "2026-01-05T00:00:00.000Z",
+      updatedAt: "2026-09-01T00:00:00.000Z"
+    }
+  ];
+  const stockMovements = [
+    {
+      id: "mov-001",
+      movementNumber: "MOV-202610-001",
+      type: "IN",
+      status: "COMPLETED",
+      targetWarehouseId: "wh-jkt-main",
+      targetWarehouseName: "Central Distribution Center (CDC)",
+      supplierId: "sup-01",
+      supplierName: "PT Mitra Solusi Teknologi",
+      referenceDoc: "PO-2026-10-089",
+      idempotencyKey: "IDEMP-PO-202610-089",
+      notes: "Penerimaan stok rutin kabel UTP dan barcode scanner inbound.",
+      createdByUserId: "usr-staff-01",
+      createdByName: "Rian Hidayat",
+      approvedByUserId: "usr-mgr-01",
+      approvedByName: "Dewi Kartika",
+      createdAt: "2026-10-10T09:30:00.000Z",
+      details: [
+        {
+          id: "smd-01",
+          movementId: "mov-001",
+          itemId: "itm-cbl-cat6",
+          itemSku: "SKU-CON-NET-001",
+          itemName: "Kabel UTP Belden Cat6 305M Roll",
+          quantity: 20,
+          unitCost: 185e4,
+          subtotal: 37e6
+        }
+      ]
+    },
+    {
+      id: "mov-002",
+      movementNumber: "MOV-202610-002",
+      type: "TRANSFER",
+      status: "COMPLETED",
+      sourceWarehouseId: "wh-jkt-main",
+      sourceWarehouseName: "Central Distribution Center (CDC)",
+      targetWarehouseId: "wh-sby-hub",
+      targetWarehouseName: "East Java Regional Fulfillment",
+      referenceDoc: "TRF-JKT-SBY-044",
+      idempotencyKey: "IDEMP-TRF-044",
+      notes: "Relokasi stok kemasan corrugated box ke cabang Surabaya untuk persiapan promo akhir tahun.",
+      createdByUserId: "usr-mgr-01",
+      createdByName: "Dewi Kartika",
+      approvedByUserId: "usr-admin-01",
+      approvedByName: "Budi Pratama",
+      createdAt: "2026-10-12T14:15:00.000Z",
+      details: [
+        {
+          id: "smd-02",
+          movementId: "mov-002",
+          itemId: "itm-box-l",
+          itemSku: "SKU-CON-PCK-003",
+          itemName: "Corrugated Box Ekspor Ukuran L (60x40x40cm)",
+          quantity: 50,
+          unitCost: 28e3,
+          subtotal: 14e5
+        }
+      ]
+    },
+    {
+      id: "mov-003",
+      movementNumber: "MOV-202610-003",
+      type: "OUT",
+      status: "COMPLETED",
+      sourceWarehouseId: "wh-jkt-main",
+      sourceWarehouseName: "Central Distribution Center (CDC)",
+      referenceDoc: "REQ-OPS-2026-112",
+      idempotencyKey: "IDEMP-REQ-112",
+      notes: "Pengeluaran alat pelindung diri untuk tim teknisi lapangan CDC.",
+      createdByUserId: "usr-staff-01",
+      createdByName: "Rian Hidayat",
+      approvedByUserId: "usr-mgr-01",
+      approvedByName: "Dewi Kartika",
+      createdAt: "2026-10-14T11:20:00.000Z",
+      details: [
+        {
+          id: "smd-03",
+          movementId: "mov-003",
+          itemId: "itm-sft-vest",
+          itemSku: "SKU-CON-SFT-005",
+          itemName: "Rompi Safety Jaring Reflektor Hi-Vis Orange",
+          quantity: 15,
+          unitCost: 35e3,
+          subtotal: 525e3
+        }
+      ]
+    }
+  ];
+  const auditLogs = [
+    {
+      id: "aud-001",
+      action: "SYSTEM_INITIALIZATION",
+      entity: "System",
+      entityId: "SYS-INIT",
+      userId: "usr-admin-01",
+      userName: "Budi Pratama (Super Admin)",
+      ipAddress: "127.0.0.1",
+      detailsJson: { message: "Database initialized and schema verified successfully." },
+      createdAt: "2026-10-10T08:00:00.000Z"
+    },
+    {
+      id: "aud-002",
+      action: "GOODS_RECEIPT",
+      entity: "StockMovement",
+      entityId: "mov-001",
+      userId: "usr-staff-01",
+      userName: "Rian Hidayat",
+      ipAddress: "192.168.1.45",
+      detailsJson: { movementNumber: "MOV-202610-001", type: "IN", targetWh: "wh-jkt-main", itemsCount: 1 },
+      createdAt: "2026-10-10T09:30:00.000Z"
+    },
+    {
+      id: "aud-003",
+      action: "STOCK_TRANSFER",
+      entity: "StockMovement",
+      entityId: "mov-002",
+      userId: "usr-mgr-01",
+      userName: "Dewi Kartika",
+      ipAddress: "192.168.1.12",
+      detailsJson: { movementNumber: "MOV-202610-002", sourceWh: "wh-jkt-main", targetWh: "wh-sby-hub", qty: 50 },
+      createdAt: "2026-10-12T14:15:00.000Z"
+    },
+    {
+      id: "aud-004",
+      action: "GOODS_ISSUE",
+      entity: "StockMovement",
+      entityId: "mov-003",
+      userId: "usr-staff-01",
+      userName: "Rian Hidayat",
+      ipAddress: "192.168.1.45",
+      detailsJson: { movementNumber: "MOV-202610-003", type: "OUT", qty: 15 },
+      createdAt: "2026-10-14T11:20:00.000Z"
+    }
+  ];
+  return {
+    users,
+    categories,
+    units,
+    suppliers,
+    warehouses,
+    locations,
+    items,
+    stockBalances,
+    assetUnits,
+    stockMovements,
+    auditLogs
+  };
+}
+
+// scripts/seed-mysql.ts
+var prisma = new PrismaClient();
+async function main() {
+  console.log("[SEED] Memulai proses seeding ke database MySQL Hostinger...");
+  const seed = getInitialSeedData();
+  console.log(`[SEED] Menyimpan ${seed.users.length} data pengguna...`);
+  for (const u of seed.users) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        name: u.name,
+        role: u.role,
+        department: u.department,
+        passwordHash: u.passwordHash
+      },
+      create: {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        department: u.department,
+        passwordHash: u.passwordHash,
+        isActive: true
+      }
+    });
+  }
+  console.log(`[SEED] Menyimpan ${seed.categories.length} kategori...`);
+  for (const c of seed.categories) {
+    await prisma.category.upsert({
+      where: { code: c.code },
+      update: { name: c.name, description: c.description },
+      create: { id: c.id, code: c.code, name: c.name, description: c.description }
+    });
+  }
+  console.log(`[SEED] Menyimpan ${seed.units.length} satuan unit...`);
+  for (const unit of seed.units) {
+    await prisma.unit.upsert({
+      where: { symbol: unit.symbol },
+      update: { name: unit.name, description: unit.description },
+      create: { id: unit.id, name: unit.name, symbol: unit.symbol, description: unit.description }
+    });
+  }
+  console.log(`[SEED] Menyimpan ${seed.suppliers.length} supplier...`);
+  for (const s of seed.suppliers) {
+    await prisma.supplier.upsert({
+      where: { code: s.code },
+      update: {
+        name: s.name,
+        contactName: s.contactName,
+        email: s.email,
+        phone: s.phone,
+        address: s.address,
+        city: s.city,
+        rating: s.rating
+      },
+      create: {
+        id: s.id,
+        code: s.code,
+        name: s.name,
+        contactName: s.contactName,
+        email: s.email,
+        phone: s.phone,
+        address: s.address,
+        city: s.city,
+        rating: s.rating,
+        isActive: true
+      }
+    });
+  }
+  console.log(`[SEED] Menyimpan ${seed.warehouses.length} gudang logistik...`);
+  for (const w of seed.warehouses) {
+    await prisma.warehouse.upsert({
+      where: { code: w.code },
+      update: {
+        name: w.name,
+        branch: w.branch,
+        address: w.address,
+        capacityCbm: w.capacityCbm
+      },
+      create: {
+        id: w.id,
+        code: w.code,
+        name: w.name,
+        branch: w.branch,
+        address: w.address,
+        capacityCbm: w.capacityCbm,
+        isActive: true
+      }
+    });
+  }
+  console.log(`[SEED] Menyimpan ${seed.items.length} master barang & saldo awal...`);
+  for (const item of seed.items) {
+    await prisma.item.upsert({
+      where: { sku: item.sku },
+      update: {
+        name: item.name,
+        currentStock: item.currentStock,
+        unitCost: item.unitCost,
+        unitPrice: item.unitPrice,
+        minStock: item.minStock,
+        maxStock: item.maxStock,
+        reorderPoint: item.reorderPoint,
+        safetyStock: item.safetyStock
+      },
+      create: {
+        id: item.id,
+        sku: item.sku,
+        barcode: item.barcode,
+        name: item.name,
+        description: item.description,
+        categoryId: item.categoryId,
+        unitId: item.unitId,
+        supplierId: item.supplierId,
+        itemType: item.itemType,
+        currentStock: item.currentStock,
+        minStock: item.minStock,
+        maxStock: item.maxStock,
+        reorderPoint: item.reorderPoint,
+        safetyStock: item.safetyStock,
+        unitCost: item.unitCost,
+        unitPrice: item.unitPrice,
+        specifications: item.specifications || {},
+        isActive: true
+      }
+    });
+    if (item.stockBalances && item.stockBalances.length > 0) {
+      for (const sb of item.stockBalances) {
+        await prisma.stockBalance.upsert({
+          where: {
+            itemId_warehouseId: {
+              itemId: sb.itemId,
+              warehouseId: sb.warehouseId
+            }
+          },
+          update: {
+            quantity: sb.quantity,
+            reservedQty: sb.reservedQty
+          },
+          create: {
+            id: sb.id,
+            itemId: sb.itemId,
+            warehouseId: sb.warehouseId,
+            quantity: sb.quantity,
+            reservedQty: sb.reservedQty
+          }
+        });
+      }
+    }
+  }
+  console.log(`[SEED] Menyimpan ${seed.assetUnits.length} unit aset bernomor seri...`);
+  for (const a of seed.assetUnits) {
+    await prisma.assetUnit.upsert({
+      where: { serialNumber: a.serialNumber },
+      update: {
+        assetTag: a.assetTag,
+        status: a.status,
+        condition: a.condition,
+        assignedToUserId: a.assignedToUserId,
+        department: a.department
+      },
+      create: {
+        id: a.id,
+        assetTag: a.assetTag,
+        serialNumber: a.serialNumber,
+        itemId: a.itemId,
+        warehouseId: a.warehouseId,
+        status: a.status,
+        condition: a.condition,
+        assignedToUserId: a.assignedToUserId,
+        department: a.department,
+        purchaseDate: a.purchaseDate ? new Date(a.purchaseDate) : null,
+        purchaseCost: a.purchaseCost,
+        warrantyExpiry: a.warrantyExpiry ? new Date(a.warrantyExpiry) : null,
+        notes: a.notes
+      }
+    });
+  }
+  console.log("=== [SEED SUCCESS] Database Hostinger MySQL berhasil diisi data awal enterprise! ===");
+}
+main().catch((e) => {
+  console.error("[SEED ERROR] Gagal melakukan seeding:", e);
+  process.exit(1);
+}).finally(async () => {
+  await prisma.$disconnect();
+});

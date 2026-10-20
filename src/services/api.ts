@@ -52,8 +52,6 @@ class ApiService {
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
-    // Forward active role header for demo session fallback
-    headers['x-demo-role'] = this.currentRole;
 
     const res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,

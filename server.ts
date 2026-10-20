@@ -833,6 +833,11 @@ async function startServer() {
     });
   });
 
+  // 404 Handler for unmatched API routes (prevents leaking HTML to API requests)
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: `Endpoint API '${req.method} ${req.path}' tidak ditemukan.` });
+  });
+
   // ---------------------------------------------------------------------------
   // VITE / STATIC SERVING
   // ---------------------------------------------------------------------------

@@ -203,21 +203,6 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
 
   if (!token) {
-    // Only in development sandbox, if specifically configured for testing with x-demo-role
-    if (!isProduction && process.env.ALLOW_DEMO_HEADER_BYPASS === 'true') {
-      const demoRole = req.headers['x-demo-role'] as RoleType;
-      if (demoRole && ROLE_PERMISSIONS[demoRole]) {
-        console.warn(`[SECURITY WARNING] Allowing dev demo bypass for role: ${demoRole}`);
-        req.user = {
-          userId: `demo-${demoRole.toLowerCase()}`,
-          email: `${demoRole.toLowerCase()}@nga-inventra.com`,
-          name: `Demo ${demoRole.replace('_', ' ')}`,
-          role: demoRole,
-          department: 'Operations',
-        };
-        return next();
-      }
-    }
     res.status(401).json({ error: 'Akses ditolak. Token otentikasi tidak ditemukan.' });
     return;
   }

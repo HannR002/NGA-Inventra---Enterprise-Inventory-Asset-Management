@@ -1,176 +1,170 @@
-# Panduan Komprehensif Deployment NGA Inventra ke Hostinger
+# Panduan Deployment Hostinger Staging — NGA INVENTRA
 
-Dokumen ini merupakan panduan teknis langkah demi langkah untuk melakukan deployment sistem **NGA INVENTRA Enterprise Inventory & Asset Management** ke layanan hosting **Hostinger** menggunakan runtime Node.js/Express dan database MySQL.
-
----
-
-## 1. Analisis & Pemilihan Paket Hosting Hostinger
-
-Hostinger menyediakan beberapa kategori layanan. Berikut adalah matriks kompatibilitas untuk menjalankan NGA INVENTRA:
-
-| Fitur / Parameter | Hostinger Shared Hosting (Premium/Business) | Hostinger Cloud Hosting (Cloud Startup/Professional) | Hostinger KVM VPS (KVM 1 / KVM 2 / KVM 4) — **Direkomendasikan** |
-| :--- | :--- | :--- | :--- |
-| **Node.js Engine** | Melalui CloudLinux Node.js Web App / Phusion Passenger | Melalui CloudLinux Node.js Web App / Passenger | Native Node.js v20/v22 LTS via NodeSource/NVM |
-| **Batas Memori (RAM)** | 512MB - 1GB (Ketat) | 3GB - 6GB | 4GB - 16GB Dedicated |
-| **Background Daemon** | Terbatas (proses sleep jika idle) | Terbatas | Penuh via **PM2** / Systemd (24/7 selalu aktif) |
-| **Koneksi Database** | Localhost (`127.0.0.1:3306`) | Localhost (`127.0.0.1:3306`) | Localhost (`127.0.0.1:3306`) / Private Network |
-| **Prisma Engine Binary** | Sering bermasalah dengan batas libc / memory saat build | Memungkinkan | 100% Kompatibel (Debian / Ubuntu OpenSSL 3.0) |
-| **Web Server** | LiteSpeed + `.htaccess` | LiteSpeed + `.htaccess` | **Nginx Reverse Proxy** + HTTP/2 + SSL Certbot |
-| **Rekomendasi Skala** | Hanya Prototyping / Internal Kecil | Operasional Menengah | **Produksi Enterprise & Multi-Cabang** |
-
-> **REKOMENDASI ARSITEKTUR:** Untuk sistem inventaris perusahaan dengan mutasi real-time dan audit trail, sangat disarankan menggunakan **Hostinger KVM VPS (Ubuntu 22.04 / 24.04 LTS)** atau minimal **Hostinger Cloud Hosting**.
+Dokumen ini merupakan panduan arsitektural dan operasional resmi untuk menambahkan **NGA INVENTRA Enterprise Inventory & Asset Management** sebagai aplikasi terpisah pada akun hosting Hostinger Anda (2 CPU Cores, 3072 MB RAM, 50 GB Disk), berdampingan secara aman dengan website jurnal yang sudah berjalan (**p4ijournal.org**).
 
 ---
 
-## 2. Pengaturan Database MySQL di Hostinger
+## ⚠️ Protokol Keamanan & Isolasi (Non-Interference with p4ijournal.org)
 
-### Langkah 2.1: Buat Database di hPanel (Shared / Cloud) atau Terminal (VPS)
-1. Buka dashboard **Hostinger hPanel** -> menu **Databases** -> **MySQL Databases**.
-2. Masukkan nama database baru, misalnya: `u123456789_inventra` (hPanel otomatis menambahkan prefix user).
-3. Masukkan username database, misalnya: `u123456789_invuser`.
-4. Buat password yang kuat (minimal 16 karakter, kombinasi simbol, angka, huruf besar/kecil).
-5. Catat kredensial ini untuk dimasukkan ke variabel lingkungan `.env`.
+Hostinger Cloud Hosting / VPS mendukung arsitektur multi-tenancy berbasis virtual host terisolasi. Untuk menjamin operasional `p4ijournal.org` tidak terganggu sama sekali:
 
-### Langkah 2.2: Catatan Keamanan Remote MySQL
-- Secara bawaan, MySQL Hostinger **hanya mendengarkan koneksi dari `localhost` (127.0.0.1)**.
-- Fitur **Remote MySQL** di Hostinger mewajibkan IP statis klien. Karena serverless container (seperti AI Studio atau Cloud Run) menggunakan IP egress yang dinamis, koneksi remote langsung dari luar ke Hostinger akan diblokir oleh firewall Hostinger.
-- **Solusi Produksi:** Aplikasi Node.js di-deploy langsung di Hostinger. Dengan cara ini, backend Node.js dan MySQL berada di satu server lokal yang sama (`host=localhost` atau `127.0.0.1`), menghasilkan:
-  * Latensi query mikrodetik (< 1ms).
-  * Bebas dari batasan Remote MySQL firewall.
-  * Keamanan maksimal tanpa port database terekspos ke internet publik.
+1. **JANGAN PERNAH menyentuh database yang sudah ada**:
+   - Database `p4ijournal.org` (biasanya OJS / WordPress / custom DB) tidak boleh diubah, dimigrasi, atau ditimpa.
+   - Buat database MySQL baru khusus Inventra dengan nama unik, misalnya: `uXXXXX_inventra_staging`.
+2. **JANGAN PERNAH menggunakan direktori root `p4ijournal.org`**:
+   - Berkas web `p4ijournal.org` berada di path seperti `public_html/`.
+   - NGA Inventra harus ditempatkan pada subdomain terpisah (contoh: `inventra.p4ijournal.org` atau `staging-inventra.p4ijournal.org`) yang memiliki Document Root independen (contoh: `domains/inventra.p4ijournal.org/public_html` atau direktori web app terisolasi).
+3. **Isolasi Proses Node.js**:
+   - NGA Inventra berjalan sebagai proses Node.js 22 independen via PM2 atau Hostinger Node.js Application Manager, mendengarkan port tersendiri (misal 3000), tanpa mempengaruhi web server Apache/LiteSpeed/Nginx yang melayani `p4ijournal.org`.
 
 ---
 
-## 3. Langkah Deployment di Hostinger VPS (Metode Rekomendasi)
+## 1. Spesifikasi Runtime & Hasil Verifikasi Lokal
 
-### Langkah 3.1: Persiapan Server VPS
-Jalankan perintah berikut di terminal SSH Hostinger VPS:
+| Komponen | Spesifikasi & Status |
+| :--- | :--- |
+| **Node.js Target** | **Node.js 22 LTS** (didukung penuh oleh paket hosting Anda) |
+| **Frontend Bundle** | React 19 SPA terkompilasi ke direktori `dist/` via Vite |
+| **Backend Bundle** | Standalone ECMAScript `server.js` (dibundel via esbuild dengan `--packages=external`) |
+| **Prisma Engine Binary** | Dikonfigurasi dengan `binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]` |
+| **Mekanisme Migrasi** | **Satu mekanisme tunggal: Prisma Migrate (`npx prisma migrate deploy`)** menggunakan direktori `prisma/migrations/20261018000000_init_mysql/migration.sql` (17 tabel relasional lengkap) |
+| **Password Hashing** | **OWASP PBKDF2-HMAC-SHA512** (210.000 iterasi, salt 16-byte kriptografis, otomatis rehash akun lama saat login) |
+| **Hasil Pengujian Lokal** | **16/16 Test Passed (0 Failures)** mencakup rollback transaksi atomik, proteksi konkurensi (mencegah stok minus), idempotensi mutasi, konservasi stok transfer, dan rekonsiliasi stock opname |
+
+---
+
+## 2. Langkah Demi Langkah Setup Staging di Hostinger hPanel
+
+### Tahap 1: Buat Subdomain Khusus Staging
+1. Masuk ke **hPanel Hostinger**.
+2. Pilih domain Anda (`p4ijournal.org`) -> buka menu **Domains** -> **Subdomains**.
+3. Buat subdomain baru:
+   - **Subdomain Name**: `inventra` (sehingga alamat menjadi `inventra.p4ijournal.org`).
+   - Centang opsi **Custom folder for subdomain**: misalnya `public_html/inventra` atau biarkan default hPanel.
+4. Klik **Create**.
+
+### Tahap 2: Buat Database MySQL Staging Khusus
+1. Di hPanel, buka menu **Databases** -> **MySQL Databases**.
+2. Buat database baru khusus:
+   - **Database Name**: Masukkan `inventra_staging` (nama lengkap di hPanel akan berformat seperti `u123456789_inventra_staging`).
+   - **Username**: Masukkan `inventra_user` (nama lengkap: `u123456789_inventra_user`).
+   - **Password**: Hasilkan password kuat (minimal 16 karakter acak dengan simbol dan angka).
+3. Simpan nama database, username, dan password tersebut.
+4. Pastikan host database adalah `localhost` atau `127.0.0.1` (karena backend Node.js dan MySQL berada di satu server lokal).
+
+---
+
+## 3. Deployment via GitHub (Add Website → Deploy Web App → Import Git)
+
+Jika paket Hostinger Anda memiliki fitur **Deploy Web App / Node.js**:
+
+1. Masuk ke menu **Websites** -> **Add Website** (atau **Web Apps** / **Node.js**).
+2. Pilih opsi **Deploy Web App** -> **Import Git Repository**.
+3. Konfigurasikan parameter repositori:
+   - **Repository URL**: Masukkan URL repositori GitHub NGA Inventra Anda.
+   - **Branch**: `main`
+   - **Node.js Version**: Pilih **22.x** (atau **20.x**).
+   - **Application Root**: `/` (root direktori repositori).
+   - **Application Startup File**: **`server.js`** *(bukan `server.ts` karena Node.js di server hosting menjalankan berkas JavaScript murni)*.
+4. Masukkan **Environment Variables**:
+   ```env
+   NODE_ENV=production
+   PORT=3000
+   DATABASE_URL="mysql://u123456789_inventra_user:PasswordDatabaseAnda@localhost:3306/u123456789_inventra_staging"
+   JWT_SECRET="masukkan_string_acak_kriptografis_minimal_64_karakter_contoh_openssl_rand_hex_32"
+   ```
+5. Tentukan Perintah Build & Start:
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm run start:prod` (atau `node server.js`)
+6. Klik **Deploy / Save**.
+
+---
+
+## 4. Eksekusi Migrasi Database & Seeding Awal Staging
+
+Setelah kode berhasil ter-deploy ke Hostinger, buka terminal SSH atau Terminal bawaan hPanel:
 
 ```bash
-# Update sistem
-sudo apt update && sudo apt upgrade -y
+# 1. Pindah ke direktori aplikasi
+cd /home/uXXXXX/public_html/inventra # (sesuaikan dengan direktori aplikasi Anda)
 
-# Pasang Node.js 22 LTS & Git
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt install -y nodejs git build-essential nginx
+# 2. Jalankan migrasi resmi Prisma (menerapkan 17 tabel relasional)
+npx prisma migrate deploy
 
-# Pasang PM2 secara global
-sudo npm install -g pm2
-```
-
-### Langkah 3.2: Clone Repositori & Konfigurasi Variabel Lingkungan
-```bash
-# Clone proyek ke /var/www
-sudo mkdir -p /var/www/nga-inventra
-sudo chown -R $USER:$USER /var/www/nga-inventra
-cd /var/www/nga-inventra
-
-# Salin source code proyek
-# Buat file .env produksi
-nano .env
-```
-
-Isi file `.env` dengan format:
-```env
-NODE_ENV=production
-PORT=3000
-DATABASE_URL="mysql://u123456789_invuser:PasswordKuatAnda@localhost:3306/u123456789_inventra"
-JWT_SECRET="ganti_dengan_random_string_kriptografis_minimal_64_karakter_2026"
-```
-
-### Langkah 3.3: Eksekusi Migrasi & Build Otomatis
-```bash
-# Berikan izin eksekusi script deployment
-chmod +x hostinger/deploy.sh
-
-# Jalankan deployment otomatis
-./hostinger/deploy.sh
-```
-
-Atau jalankan secara manual:
-```bash
-# 1. Install dependensi
-npm install --legacy-peer-deps
-
-# 2. Generate Prisma Client
-npx prisma generate
-
-# 3. Sinkronkan skema ke MySQL
-npx prisma db push
-
-# 4. (Opsional) Isi data awal/master enterprise
+# 3. (Opsional) Lakukan Seeding data master staging (User awal, Gudang, Kategori, Unit)
 npm run db:seed
-
-# 5. Build aset React
-npm run build
-
-# 6. Jalankan proses dengan PM2
-pm2 start hostinger/ecosystem.config.cjs --env production
-pm2 save
-pm2 startup
 ```
 
-### Langkah 3.4: Konfigurasi Nginx Reverse Proxy & SSL
-```bash
-# Salin konfigurasi Nginx
-sudo cp hostinger/nginx.conf /etc/nginx/sites-available/nga-inventra
+> **Catatan:** Script `npm run db:seed` otomatis mengeksekusi `node scripts/seed-mysql.js` yang telah dikompilasi secara mandiri sehingga tidak membutuhkan `tsx` atau dependensi development tambahan di server produksi.
 
-# Sesuaikan nama domain Anda
-sudo nano /etc/nginx/sites-available/nga-inventra
+---
 
-# Aktifkan situs
-sudo ln -s /etc/nginx/sites-available/nga-inventra /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+## 5. Konfigurasi Web Server Reverse Proxy & SSL
 
-# Pasang SSL gratis Let's Encrypt
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d domainanda.com -d www.domainanda.com
+### Skenario A: Hostinger Cloud Hosting (LiteSpeed / Apache)
+Pastikan berkas `.htaccess` di direktori web app Anda memiliki aturan rewrite untuk meneruskan traffic ke Node.js dan SPA fallback:
+
+```apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^api/(.*)$ http://127.0.0.1:3000/api/$1 [P,L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
 ```
 
----
+### Skenario B: Hostinger VPS (Nginx Reverse Proxy)
+Gunakan konfigurasi Nginx pada `hostinger/nginx.conf` dengan `server_name inventra.p4ijournal.org`:
 
-## 4. Langkah Deployment di Hostinger Shared / Cloud Hosting (hPanel)
+```nginx
+server {
+    server_name inventra.p4ijournal.org;
 
-Jika Anda menggunakan paket Shared/Cloud Hosting berbasis hPanel:
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
 
-1. **Buka Menu "Node.js" di hPanel**:
-   * **Node.js version**: Pilih versi **20.x** atau **22.x**.
-   * **Application mode**: `Production`.
-   * **Application root**: `nga-inventra`.
-   * **Application startup file**: `server.js` (berkas bundle produksi yang dihasilkan oleh `npm run build`).
-2. **Unggah Berkas**:
-   * Jika menggunakan **GitHub**: Hubungkan repositori di menu Git hPanel, lalu jalankan `npm run build` yang otomatis menghasilkan `dist/` dan `server.js`.
-   * Jika menggunakan **ZIP**: Build proyek secara lokal (`npm run build`), lalu arsipkan dan upload ke hPanel File Manager, kemudian ekstrak ke root direktori aplikasi.
-3. **Environment Variables di hPanel**:
-   * Tambahkan `DATABASE_URL` dan `JWT_SECRET` pada tab Environment Variables di menu Node.js hPanel.
-4. **Jalankan Migrasi Database**:
-   * Buka phpMyAdmin di hPanel.
-   * Pilih database Anda.
-   * Klik tab **Import** -> pilih berkas `migrations/init_mysql.sql` -> klik **Go**.
-5. **Konfigurasi .htaccess**:
-   * Pastikan berkas `hostinger/.htaccess` tersalin ke root direktori web Anda (`public_html/.htaccess`).
-6. **Klik "Restart"** pada menu Node.js app di hPanel.
-
----
-
-## 5. Troubleshooting & Checklist Masalah Umum di Hostinger
-
-| Gejala Error | Penyebab | Solusi |
-| :--- | :--- | :--- |
-| `ETIMEDOUT` / `ECONNREFUSED` saat koneksi database | MySQL diakses dari luar Hostinger atau port 3306 diblokir firewall. | Gunakan `localhost` atau `127.0.0.1` sebagai host database karena Node.js dan MySQL berada di server yang sama. |
-| `PrismaClientInitializationError: Query engine binary not found` | Engine Prisma belum di-generate untuk arsitektur OS Hostinger (Debian/CloudLinux). | Jalankan `npx prisma generate` di server Hostinger setelah `npm install`. |
-| Port 3000 conflict (`EADDRINUSE`) | Ada proses lama yang masih berjalan di background. | Hentikan proses lama: `pm2 delete all` atau `lsof -ti :3000 \| xargs kill -9`. |
-| Memory Limit Exceeded saat build | Shared hosting memiliki limit memori RAM rendah saat `npm run build`. | Lakukan `npm run build` di komputer lokal Anda, kemudian upload folder `dist/` ke Hostinger. |
-| Blank Page pada rute React selain `/` | Server web belum meneruskan seluruh request non-file ke `index.html`. | Pastikan baris fallback Nginx `try_files` atau aturan `.htaccess` sudah aktif. |
+Aktifkan SSL gratis Let's Encrypt melalui menu **Security** -> **SSL** di hPanel untuk subdomain `inventra.p4ijournal.org`.
 
 ---
 
-## 6. Verifikasi Pasca Deployment
+## 6. Verifikasi Operasional Pasca-Deployment
 
-Setelah server aktif, verifikasi integrasi sistem:
-1. Buka `https://domainanda.com/api/health`.
-   * Pastikan respons JSON menunjukkan: `"status": "UP"` dan `"database": { "status": "CONNECTED" }`.
-2. Buka menu **Pengaturan** di halaman antarmuka web.
-3. Klik tombol **"Uji Koneksi Realtime"**.
-   * Sistem akan menjalankan query `SELECT VERSION()` dan `SELECT 1` secara langsung ke database MySQL Hostinger serta menampilkan nilai latensi aktual.
+Setelah aplikasi aktif di Hostinger, lakukan uji koneksi langsung:
+
+1. **Uji Health Check Endpoint**:
+   Kunjungi: `https://inventra.p4ijournal.org/api/health`
+   Respons yang benar akan mengembalikan HTTP 200:
+   ```json
+   {
+     "status": "UP",
+     "environment": "production",
+     "activeEngine": "PRISMA_MYSQL",
+     "database": {
+       "status": "CONNECTED",
+       "engine": "MySQL 8.0+",
+       "databaseVersion": "8.0.xx",
+       "latencyMs": 1.2,
+       "host": "localhost"
+     }
+   }
+   ```
+2. **Uji Antarmuka Web**:
+   Buka `https://inventra.p4ijournal.org` di browser.
+   Login menggunakan kredensial staging yang telah di-seed:
+   - **Email**: `admin@nga-inventra.com`
+   - **Password**: `AdminSecurePass2026!`
+   *(Sistem akan otomatis meng-upgrade hash akun ke standar OWASP 210.000 iterasi secara transparan).*
+3. **Uji Pengaturan Sistem**:
+   Buka menu **Pengaturan** -> klik **"Uji Koneksi Realtime"**. Sistem akan mengeksekusi query `SELECT VERSION()` dan `SELECT 1` secara langsung ke MySQL Hostinger Anda dan menampilkan latensi query aktual.

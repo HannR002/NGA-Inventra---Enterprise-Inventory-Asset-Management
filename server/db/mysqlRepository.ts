@@ -483,8 +483,8 @@ export class PrismaMySQLRepository {
         }
 
         const quantity = d.quantity;
-        if (quantity <= 0) {
-          throw new Error(`Kuantitas untuk "${item.name}" harus lebih besar dari 0.`);
+        if (quantity === 0 || (quantity < 0 && input.type !== 'ADJUSTMENT')) {
+          throw new Error(`Kuantitas untuk "${item.name}" harus valid dan tidak boleh 0.`);
         }
 
         // Handle Goods Out: Check source balance
@@ -585,6 +585,37 @@ export class PrismaMySQLRepository {
             },
           });
           // Note: Overall currentStock remains unchanged during warehouse transfer
+        }
+
+        // Handle Adjustment (Stock Opname discrepancy reconciliations)
+        else if (input.type === 'ADJUSTMENT') {
+          const targetWh = input.targetWarehouseId || input.sourceWarehouseId;
+          if (!targetWh) {
+            throw new Error('Gudang harus ditentukan untuk mutasi penyesuaian stok (ADJUSTMENT).');
+          }
+          await tx.stockBalance.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: d.itemId,
+                warehouseId: targetWh,
+              },
+            },
+            create: {
+              id: `sb-${d.itemId}-${targetWh}`,
+              itemId: d.itemId,
+              warehouseId: targetWh,
+              quantity: Math.max(0, quantity),
+              reservedQty: 0,
+            },
+            update: {
+              quantity: { increment: quantity },
+            },
+          });
+
+          await tx.item.update({
+            where: { id: item.id },
+            data: { currentStock: { increment: quantity } },
+          });
         }
       }
 
