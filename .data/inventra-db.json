@@ -2116,6 +2116,160 @@
       "unitSymbol": "PCS",
       "createdAt": "2026-10-19T18:05:06.564Z",
       "updatedAt": "2026-10-19T18:05:06.564Z"
+    },
+    {
+      "sku": "TEST-SKU-1792519079642",
+      "barcode": "89991792519079643",
+      "name": "Unit Test Consumable Item",
+      "description": "Testing negative stock prevention",
+      "categoryId": "cat-pck",
+      "unitId": "u-pcs",
+      "itemType": "CONSUMABLE",
+      "currentStock": 6,
+      "minStock": 5,
+      "maxStock": 50,
+      "reorderPoint": 8,
+      "safetyStock": 2,
+      "unitCost": 10000,
+      "unitPrice": 15000,
+      "isActive": true,
+      "id": "itm-1792519079643",
+      "categoryName": "Packaging & Consumables",
+      "unitSymbol": "PCS",
+      "createdAt": "2026-10-20T17:57:59.643Z",
+      "updatedAt": "2026-10-20T17:57:59.669Z"
+    },
+    {
+      "sku": "IDEMP-SKU-1792519079678",
+      "barcode": "89981792519079678",
+      "name": "Idempotency Test Item",
+      "description": "Testing double-submit prevention",
+      "categoryId": "cat-pck",
+      "unitId": "u-pcs",
+      "itemType": "CONSUMABLE",
+      "currentStock": 40,
+      "minStock": 10,
+      "maxStock": 100,
+      "reorderPoint": 20,
+      "safetyStock": 5,
+      "unitCost": 20000,
+      "unitPrice": 30000,
+      "isActive": true,
+      "id": "itm-1792519079678",
+      "categoryName": "Packaging & Consumables",
+      "unitSymbol": "PCS",
+      "createdAt": "2026-10-20T17:57:59.678Z",
+      "updatedAt": "2026-10-20T17:57:59.679Z"
+    },
+    {
+      "sku": "TRF-SKU-1792519079689",
+      "barcode": "89971792519079689",
+      "name": "Transfer Conservation Test Item",
+      "description": "Testing total balance conservation",
+      "categoryId": "cat-net",
+      "unitId": "u-pcs",
+      "itemType": "CONSUMABLE",
+      "currentStock": 30,
+      "minStock": 5,
+      "maxStock": 100,
+      "reorderPoint": 10,
+      "safetyStock": 2,
+      "unitCost": 50000,
+      "unitPrice": 75000,
+      "isActive": true,
+      "id": "itm-1792519079689",
+      "categoryName": "Networking Equipment",
+      "unitSymbol": "PCS",
+      "createdAt": "2026-10-20T17:57:59.689Z",
+      "updatedAt": "2026-10-20T17:57:59.691Z"
+    },
+    {
+      "sku": "CONCUR-1792519080240",
+      "barcode": "",
+      "name": "Concurrent Test Item",
+      "description": "",
+      "categoryId": "cat-pck",
+      "unitId": "u-pcs",
+      "itemType": "CONSUMABLE",
+      "currentStock": 5,
+      "minStock": 2,
+      "maxStock": 50,
+      "reorderPoint": 5,
+      "safetyStock": 2,
+      "unitCost": 10000,
+      "unitPrice": 15000,
+      "isActive": true,
+      "id": "itm-1792519080240",
+      "categoryName": "Packaging & Consumables",
+      "unitSymbol": "PCS",
+      "createdAt": "2026-10-20T17:58:00.240Z",
+      "updatedAt": "2026-10-20T17:58:00.241Z"
+    },
+    {
+      "sku": "IDEMP-DB-1792519080264",
+      "barcode": "",
+      "name": "Idempotent DB Test Item",
+      "description": "",
+      "categoryId": "cat-pck",
+      "unitId": "u-pcs",
+      "itemType": "CONSUMABLE",
+      "currentStock": 32,
+      "minStock": 5,
+      "maxStock": 50,
+      "reorderPoint": 10,
+      "safetyStock": 2,
+      "unitCost": 10000,
+      "unitPrice": 15000,
+      "isActive": true,
+      "id": "itm-1792519080264",
+      "categoryName": "Packaging & Consumables",
+      "unitSymbol": "PCS",
+      "createdAt": "2026-10-20T17:58:00.264Z",
+      "updatedAt": "2026-10-20T17:58:00.265Z"
+    },
+    {
+      "sku": "TRF-CONSERV-1792519080271",
+      "barcode": "",
+      "name": "Transfer Conservation Item",
+      "description": "",
+      "categoryId": "cat-net",
+      "unitId": "u-pcs",
+      "itemType": "CONSUMABLE",
+      "currentStock": 50,
+      "minStock": 5,
+      "maxStock": 100,
+      "reorderPoint": 10,
+      "safetyStock": 2,
+      "unitCost": 20000,
+      "unitPrice": 30000,
+      "isActive": true,
+      "id": "itm-1792519080271",
+      "categoryName": "Networking Equipment",
+      "unitSymbol": "PCS",
+      "createdAt": "2026-10-20T17:58:00.272Z",
+      "updatedAt": "2026-10-20T17:58:00.272Z"
+    },
+    {
+      "sku": "OPN-TEST-1792519080275",
+      "barcode": "",
+      "name": "Opname Test Item",
+      "description": "",
+      "categoryId": "cat-pck",
+      "unitId": "u-pcs",
+      "itemType": "CONSUMABLE",
+      "currentStock": 22,
+      "minStock": 5,
+      "maxStock": 50,
+      "reorderPoint": 10,
+      "safetyStock": 2,
+      "unitCost": 10000,
+      "unitPrice": 15000,
+      "isActive": true,
+      "id": "itm-1792519080275",
+      "categoryName": "Packaging & Consumables",
+      "unitSymbol": "PCS",
+      "createdAt": "2026-10-20T17:58:00.275Z",
+      "updatedAt": "2026-10-20T17:58:00.276Z"
     }
   ],
   "stockBalances": [
@@ -3218,6 +3372,96 @@
       "quantity": 22,
       "reservedQty": 0,
       "updatedAt": "2026-10-19T18:05:06.564Z"
+    },
+    {
+      "id": "sb-1792519079643",
+      "itemId": "itm-1792519079643",
+      "warehouseId": "wh-jkt-main",
+      "warehouseCode": "WH-JKT-01",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "quantity": 6,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:57:59.669Z"
+    },
+    {
+      "id": "sb-1792519079678",
+      "itemId": "itm-1792519079678",
+      "warehouseId": "wh-jkt-main",
+      "warehouseCode": "WH-JKT-01",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "quantity": 40,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:57:59.679Z"
+    },
+    {
+      "id": "sb-1792519079689",
+      "itemId": "itm-1792519079689",
+      "warehouseId": "wh-jkt-main",
+      "warehouseCode": "WH-JKT-01",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "quantity": 18,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:57:59.691Z"
+    },
+    {
+      "id": "sb-1792519079691-1ra6",
+      "itemId": "itm-1792519079689",
+      "warehouseId": "wh-sby-hub",
+      "warehouseCode": "WH-SBY-02",
+      "warehouseName": "East Java Regional Fulfillment",
+      "quantity": 12,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:57:59.691Z"
+    },
+    {
+      "id": "sb-1792519080240",
+      "itemId": "itm-1792519080240",
+      "warehouseId": "wh-jkt-main",
+      "warehouseCode": "WH-JKT-01",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "quantity": 5,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:58:00.241Z"
+    },
+    {
+      "id": "sb-1792519080264",
+      "itemId": "itm-1792519080264",
+      "warehouseId": "wh-jkt-main",
+      "warehouseCode": "WH-JKT-01",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "quantity": 32,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:58:00.265Z"
+    },
+    {
+      "id": "sb-1792519080272",
+      "itemId": "itm-1792519080271",
+      "warehouseId": "wh-jkt-main",
+      "warehouseCode": "WH-JKT-01",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "quantity": 35,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:58:00.272Z"
+    },
+    {
+      "id": "sb-1792519080272-7g9y",
+      "itemId": "itm-1792519080271",
+      "warehouseId": "wh-sby-hub",
+      "warehouseCode": "WH-SBY-02",
+      "warehouseName": "East Java Regional Fulfillment",
+      "quantity": 15,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:58:00.272Z"
+    },
+    {
+      "id": "sb-1792519080275",
+      "itemId": "itm-1792519080275",
+      "warehouseId": "wh-jkt-main",
+      "warehouseCode": "WH-JKT-01",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "quantity": 22,
+      "reservedQty": 0,
+      "updatedAt": "2026-10-20T17:58:00.276Z"
     }
   ],
   "assetUnits": [
@@ -3346,6 +3590,174 @@
     }
   ],
   "stockMovements": [
+    {
+      "id": "mov-1792519080276",
+      "movementNumber": "MOV-202610-429",
+      "type": "ADJUSTMENT",
+      "status": "COMPLETED",
+      "sourceWarehouseId": "wh-jkt-main",
+      "sourceWarehouseName": "Central Distribution Center (CDC)",
+      "notes": "Penyesuaian hasil stock opname OPN-202610-834",
+      "createdByUserId": "usr-admin-01",
+      "createdByName": "Budi Pratama (Super Admin)",
+      "createdAt": "2026-10-20T17:58:00.276Z",
+      "details": [
+        {
+          "id": "smd-1792519080276-nm9u",
+          "movementId": "mov-1792519080276",
+          "itemId": "itm-1792519080275",
+          "itemSku": "OPN-TEST-1792519080275",
+          "itemName": "Opname Test Item",
+          "quantity": -3,
+          "unitCost": 10000,
+          "subtotal": -30000
+        }
+      ]
+    },
+    {
+      "id": "mov-1792519080272",
+      "movementNumber": "MOV-202610-533",
+      "type": "TRANSFER",
+      "status": "COMPLETED",
+      "sourceWarehouseId": "wh-jkt-main",
+      "sourceWarehouseName": "Central Distribution Center (CDC)",
+      "targetWarehouseId": "wh-sby-hub",
+      "targetWarehouseName": "East Java Regional Fulfillment",
+      "createdByUserId": "usr-admin-01",
+      "createdByName": "Budi Pratama (Super Admin)",
+      "createdAt": "2026-10-20T17:58:00.272Z",
+      "details": [
+        {
+          "id": "smd-1792519080272-9tc6",
+          "movementId": "mov-1792519080272",
+          "itemId": "itm-1792519080271",
+          "itemSku": "TRF-CONSERV-1792519080271",
+          "itemName": "Transfer Conservation Item",
+          "quantity": 15,
+          "unitCost": 20000,
+          "subtotal": 300000
+        }
+      ]
+    },
+    {
+      "id": "mov-1792519080265",
+      "movementNumber": "MOV-202610-287",
+      "type": "OUT",
+      "status": "COMPLETED",
+      "sourceWarehouseId": "wh-jkt-main",
+      "sourceWarehouseName": "Central Distribution Center (CDC)",
+      "idempotencyKey": "KEY-STAGING-1792519080264",
+      "createdByUserId": "usr-admin-01",
+      "createdByName": "Budi Pratama (Super Admin)",
+      "createdAt": "2026-10-20T17:58:00.265Z",
+      "details": [
+        {
+          "id": "smd-1792519080265-oxfh",
+          "movementId": "mov-1792519080265",
+          "itemId": "itm-1792519080264",
+          "itemSku": "IDEMP-DB-1792519080264",
+          "itemName": "Idempotent DB Test Item",
+          "quantity": 8,
+          "unitCost": 10000,
+          "subtotal": 80000
+        }
+      ]
+    },
+    {
+      "id": "mov-1792519080241",
+      "movementNumber": "MOV-202610-628",
+      "type": "OUT",
+      "status": "COMPLETED",
+      "sourceWarehouseId": "wh-jkt-main",
+      "sourceWarehouseName": "Central Distribution Center (CDC)",
+      "createdByUserId": "usr-admin-01",
+      "createdByName": "Budi Pratama (Super Admin)",
+      "createdAt": "2026-10-20T17:58:00.241Z",
+      "details": [
+        {
+          "id": "smd-1792519080241-a68g",
+          "movementId": "mov-1792519080241",
+          "itemId": "itm-1792519080240",
+          "itemSku": "CONCUR-1792519080240",
+          "itemName": "Concurrent Test Item",
+          "quantity": 10,
+          "unitCost": 10000,
+          "subtotal": 100000
+        }
+      ]
+    },
+    {
+      "id": "mov-1792519079691",
+      "movementNumber": "MOV-202610-417",
+      "type": "TRANSFER",
+      "status": "COMPLETED",
+      "sourceWarehouseId": "wh-jkt-main",
+      "sourceWarehouseName": "Central Distribution Center (CDC)",
+      "targetWarehouseId": "wh-sby-hub",
+      "targetWarehouseName": "East Java Regional Fulfillment",
+      "createdByUserId": "usr-admin-01",
+      "createdByName": "Budi Pratama (Super Admin)",
+      "createdAt": "2026-10-20T17:57:59.691Z",
+      "details": [
+        {
+          "id": "smd-1792519079691-kjk5",
+          "movementId": "mov-1792519079691",
+          "itemId": "itm-1792519079689",
+          "itemSku": "TRF-SKU-1792519079689",
+          "itemName": "Transfer Conservation Test Item",
+          "quantity": 12,
+          "unitCost": 50000,
+          "subtotal": 600000
+        }
+      ]
+    },
+    {
+      "id": "mov-1792519079679",
+      "movementNumber": "MOV-202610-123",
+      "type": "OUT",
+      "status": "COMPLETED",
+      "sourceWarehouseId": "wh-jkt-main",
+      "sourceWarehouseName": "Central Distribution Center (CDC)",
+      "idempotencyKey": "KEY-1792519079678",
+      "createdByUserId": "usr-admin-01",
+      "createdByName": "Budi Pratama (Super Admin)",
+      "createdAt": "2026-10-20T17:57:59.679Z",
+      "details": [
+        {
+          "id": "smd-1792519079679-xvxx",
+          "movementId": "mov-1792519079679",
+          "itemId": "itm-1792519079678",
+          "itemSku": "IDEMP-SKU-1792519079678",
+          "itemName": "Idempotency Test Item",
+          "quantity": 10,
+          "unitCost": 20000,
+          "subtotal": 200000
+        }
+      ]
+    },
+    {
+      "id": "mov-1792519079648",
+      "movementNumber": "MOV-202610-400",
+      "type": "OUT",
+      "status": "COMPLETED",
+      "sourceWarehouseId": "wh-jkt-main",
+      "sourceWarehouseName": "Central Distribution Center (CDC)",
+      "createdByUserId": "usr-admin-01",
+      "createdByName": "Budi Pratama (Super Admin)",
+      "createdAt": "2026-10-20T17:57:59.670Z",
+      "details": [
+        {
+          "id": "smd-1792519079669-tfmn",
+          "movementId": "mov-1792519079648",
+          "itemId": "itm-1792519079643",
+          "itemSku": "TEST-SKU-1792519079642",
+          "itemName": "Unit Test Consumable Item",
+          "quantity": 4,
+          "unitCost": 10000,
+          "subtotal": 40000
+        }
+      ]
+    },
     {
       "id": "mov-1792433106564",
       "movementNumber": "MOV-202610-784",
@@ -5113,6 +5525,111 @@
   ],
   "auditLogs": [
     {
+      "id": "aud-1792519080276-3kh9z",
+      "action": "STOCK_ADJUSTMENT",
+      "entity": "StockMovement",
+      "entityId": "mov-1792519080276",
+      "userId": "usr-admin-01",
+      "userName": "Budi Pratama (Super Admin)",
+      "ipAddress": "127.0.0.1",
+      "detailsJson": {
+        "movementNumber": "MOV-202610-429",
+        "type": "ADJUSTMENT",
+        "itemsCount": 1
+      },
+      "createdAt": "2026-10-20T17:58:00.276Z"
+    },
+    {
+      "id": "aud-1792519080272-aycag",
+      "action": "STOCK_TRANSFER",
+      "entity": "StockMovement",
+      "entityId": "mov-1792519080272",
+      "userId": "usr-admin-01",
+      "userName": "Budi Pratama (Super Admin)",
+      "ipAddress": "127.0.0.1",
+      "detailsJson": {
+        "movementNumber": "MOV-202610-533",
+        "type": "TRANSFER",
+        "itemsCount": 1
+      },
+      "createdAt": "2026-10-20T17:58:00.272Z"
+    },
+    {
+      "id": "aud-1792519080265-v8mtz",
+      "action": "STOCK_OUT",
+      "entity": "StockMovement",
+      "entityId": "mov-1792519080265",
+      "userId": "usr-admin-01",
+      "userName": "Budi Pratama (Super Admin)",
+      "ipAddress": "127.0.0.1",
+      "detailsJson": {
+        "movementNumber": "MOV-202610-287",
+        "type": "OUT",
+        "itemsCount": 1
+      },
+      "createdAt": "2026-10-20T17:58:00.265Z"
+    },
+    {
+      "id": "aud-1792519080241-su5si",
+      "action": "STOCK_OUT",
+      "entity": "StockMovement",
+      "entityId": "mov-1792519080241",
+      "userId": "usr-admin-01",
+      "userName": "Budi Pratama (Super Admin)",
+      "ipAddress": "127.0.0.1",
+      "detailsJson": {
+        "movementNumber": "MOV-202610-628",
+        "type": "OUT",
+        "itemsCount": 1
+      },
+      "createdAt": "2026-10-20T17:58:00.241Z"
+    },
+    {
+      "id": "aud-1792519079691-2y61w",
+      "action": "STOCK_TRANSFER",
+      "entity": "StockMovement",
+      "entityId": "mov-1792519079691",
+      "userId": "usr-admin-01",
+      "userName": "Budi Pratama (Super Admin)",
+      "ipAddress": "127.0.0.1",
+      "detailsJson": {
+        "movementNumber": "MOV-202610-417",
+        "type": "TRANSFER",
+        "itemsCount": 1
+      },
+      "createdAt": "2026-10-20T17:57:59.691Z"
+    },
+    {
+      "id": "aud-1792519079679-j18wj",
+      "action": "STOCK_OUT",
+      "entity": "StockMovement",
+      "entityId": "mov-1792519079679",
+      "userId": "usr-admin-01",
+      "userName": "Budi Pratama (Super Admin)",
+      "ipAddress": "127.0.0.1",
+      "detailsJson": {
+        "movementNumber": "MOV-202610-123",
+        "type": "OUT",
+        "itemsCount": 1
+      },
+      "createdAt": "2026-10-20T17:57:59.679Z"
+    },
+    {
+      "id": "aud-1792519079670-w5xc8",
+      "action": "STOCK_OUT",
+      "entity": "StockMovement",
+      "entityId": "mov-1792519079648",
+      "userId": "usr-admin-01",
+      "userName": "Budi Pratama (Super Admin)",
+      "ipAddress": "127.0.0.1",
+      "detailsJson": {
+        "movementNumber": "MOV-202610-400",
+        "type": "OUT",
+        "itemsCount": 1
+      },
+      "createdAt": "2026-10-20T17:57:59.670Z"
+    },
+    {
       "id": "aud-1792433106564-75adq",
       "action": "STOCK_ADJUSTMENT",
       "entity": "StockMovement",
@@ -6225,6 +6742,28 @@
   ],
   "assetAssignments": [],
   "stockOpnames": [
+    {
+      "warehouseId": "wh-jkt-main",
+      "scheduledDate": "2026-10-20",
+      "status": "COMPLETED",
+      "notes": "Q1 Regular Audit Reconciliation",
+      "details": [
+        {
+          "id": "opnd-1",
+          "opnameId": "opn-1",
+          "itemId": "itm-1792519080275",
+          "systemStock": 25,
+          "physicalStock": 22,
+          "difference": -3,
+          "unitCost": 10000,
+          "discrepancyValue": -30000
+        }
+      ],
+      "id": "opn-1792519080275",
+      "opnameNumber": "OPN-202610-834",
+      "warehouseName": "Central Distribution Center (CDC)",
+      "createdAt": "2026-10-20T17:58:00.275Z"
+    },
     {
       "warehouseId": "wh-jkt-main",
       "scheduledDate": "2026-10-19",

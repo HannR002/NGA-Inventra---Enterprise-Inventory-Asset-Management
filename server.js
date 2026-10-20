@@ -1,8 +1,11 @@
 // server.ts
-import express from "express";
+import express2 from "express";
 import path2 from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
+
+// server/app.ts
+import express from "express";
 
 // server/db/connection.ts
 import { PrismaClient } from "@prisma/client";
@@ -44,14 +47,14 @@ function parseAndMaskDatabaseUrl(rawUrl) {
     };
   }
 }
-var prismaClientInstance = null;
+var globalForDb = globalThis;
 function getPrismaClient() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
     return null;
   }
-  if (!prismaClientInstance) {
-    prismaClientInstance = new PrismaClient({
+  if (!globalForDb.prismaClientInstance) {
+    globalForDb.prismaClientInstance = new PrismaClient({
       datasources: {
         db: {
           url: dbUrl
@@ -60,20 +63,20 @@ function getPrismaClient() {
       log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
     });
   }
-  return prismaClientInstance;
+  return globalForDb.prismaClientInstance;
 }
-var mysqlPoolInstance = null;
 function getMysqlPool() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) return null;
-  if (!mysqlPoolInstance) {
+  if (!globalForDb.mysqlPoolInstance) {
     try {
-      mysqlPoolInstance = mysql.createPool({
+      const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+      globalForDb.mysqlPoolInstance = mysql.createPool({
         uri: dbUrl,
         waitForConnections: true,
-        connectionLimit: 10,
-        maxIdle: 10,
-        idleTimeout: 6e4,
+        connectionLimit: isServerless ? 3 : 10,
+        maxIdle: isServerless ? 2 : 10,
+        idleTimeout: 3e4,
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 1e4
@@ -83,7 +86,7 @@ function getMysqlPool() {
       return null;
     }
   }
-  return mysqlPoolInstance;
+  return globalForDb.mysqlPoolInstance;
 }
 async function testDatabaseConnectivity() {
   const dbUrl = process.env.DATABASE_URL;
@@ -207,6 +210,12 @@ var PrismaMySQLRepository = class {
       createdAt: u.createdAt.toISOString(),
       updatedAt: u.updatedAt ? u.updatedAt.toISOString() : u.createdAt.toISOString()
     };
+  }
+  async updateUserPassword(id, newPasswordHash) {
+    await this.prisma.user.update({
+      where: { id },
+      data: { passwordHash: newPasswordHash }
+    });
   }
   async getUsers() {
     const users = await this.prisma.user.findMany({
@@ -590,8 +599,8 @@ var PrismaMySQLRepository = class {
           throw new Error(`Item ID "${d.itemId}" tidak ditemukan di database.`);
         }
         const quantity = d.quantity;
-        if (quantity <= 0) {
-          throw new Error(`Kuantitas untuk "${item.name}" harus lebih besar dari 0.`);
+        if (quantity === 0 || quantity < 0 && input.type !== "ADJUSTMENT") {
+          throw new Error(`Kuantitas untuk "${item.name}" harus valid dan tidak boleh 0.`);
         }
         if (input.type === "OUT") {
           const sourceBal = await tx.stockBalance.findUnique({
@@ -671,6 +680,33 @@ var PrismaMySQLRepository = class {
             update: {
               quantity: { increment: quantity }
             }
+          });
+        } else if (input.type === "ADJUSTMENT") {
+          const targetWh = input.targetWarehouseId || input.sourceWarehouseId;
+          if (!targetWh) {
+            throw new Error("Gudang harus ditentukan untuk mutasi penyesuaian stok (ADJUSTMENT).");
+          }
+          await tx.stockBalance.upsert({
+            where: {
+              itemId_warehouseId: {
+                itemId: d.itemId,
+                warehouseId: targetWh
+              }
+            },
+            create: {
+              id: `sb-${d.itemId}-${targetWh}`,
+              itemId: d.itemId,
+              warehouseId: targetWh,
+              quantity: Math.max(0, quantity),
+              reservedQty: 0
+            },
+            update: {
+              quantity: { increment: quantity }
+            }
+          });
+          await tx.item.update({
+            where: { id: item.id },
+            data: { currentStock: { increment: quantity } }
           });
         }
       }
@@ -1170,31 +1206,61 @@ import path from "path";
 import crypto from "crypto";
 var isProduction = process.env.NODE_ENV === "production";
 var rawSecret = process.env.JWT_SECRET;
-if (isProduction && (!rawSecret || rawSecret === "inventra_enterprise_secure_jwt_secret_key_2026")) {
-  console.error("[CRITICAL SECURITY ERROR] In production, process.env.JWT_SECRET must be configured with a strong, unique secret key!");
+var INSECURE_DEFAULT_SECRET = "inventra_enterprise_secure_jwt_secret_key_2026";
+if (isProduction) {
+  if (!rawSecret || rawSecret === INSECURE_DEFAULT_SECRET || rawSecret.trim().length < 32) {
+    throw new Error(
+      "[FATAL SECURITY CONFIGURATION] In production mode (NODE_ENV=production), process.env.JWT_SECRET is REQUIRED and must be a unique, high-entropy secret string of at least 32 characters. Default/fallback keys are strictly rejected."
+    );
+  }
 }
-var SECRET_KEY = rawSecret || "inventra_enterprise_secure_jwt_secret_key_2026";
+var SECRET_KEY = rawSecret || INSECURE_DEFAULT_SECRET;
+var OWASP_PBKDF2_ITERATIONS = 21e4;
 function hashPassword(password) {
   if (!password || typeof password !== "string") {
     throw new Error("Password must be a non-empty string");
   }
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.pbkdf2Sync(password, salt, 1e4, 64, "sha512").toString("hex");
-  return `${salt}:${hash}`;
+  const hash = crypto.pbkdf2Sync(password, salt, OWASP_PBKDF2_ITERATIONS, 64, "sha512").toString("hex");
+  return `pbkdf2:sha512:${OWASP_PBKDF2_ITERATIONS}:${salt}:${hash}`;
+}
+function needsRehash(storedHash) {
+  if (!storedHash || typeof storedHash !== "string") return true;
+  return !storedHash.startsWith(`pbkdf2:sha512:${OWASP_PBKDF2_ITERATIONS}:`);
 }
 function verifyPassword(password, storedHash) {
   try {
     if (!password || !storedHash) return false;
-    const parts = storedHash.split(":");
-    if (parts.length !== 2) return false;
-    const [salt, key] = parts;
-    if (!salt || !key) return false;
-    let testHash = crypto.pbkdf2Sync(password, salt, 1e4, 64, "sha512").toString("hex");
-    if (crypto.timingSafeEqual(Buffer.from(key, "hex"), Buffer.from(testHash, "hex"))) {
-      return true;
+    if (storedHash.startsWith("pbkdf2:sha512:")) {
+      const parts2 = storedHash.split(":");
+      if (parts2.length !== 5) return false;
+      const iterations = parseInt(parts2[2], 10);
+      const salt = parts2[3];
+      const keyHex = parts2[4];
+      if (isNaN(iterations) || iterations < 1e3 || !salt || !keyHex) return false;
+      const testHash = crypto.pbkdf2Sync(password, salt, iterations, 64, "sha512").toString("hex");
+      const keyBuf = Buffer.from(keyHex, "hex");
+      const testBuf = Buffer.from(testHash, "hex");
+      if (keyBuf.length !== testBuf.length) return false;
+      return crypto.timingSafeEqual(keyBuf, testBuf);
     }
-    testHash = crypto.pbkdf2Sync(password, salt, 1e3, 64, "sha512").toString("hex");
-    return crypto.timingSafeEqual(Buffer.from(key, "hex"), Buffer.from(testHash, "hex"));
+    const parts = storedHash.split(":");
+    if (parts.length === 2) {
+      const [salt, keyHex] = parts;
+      if (!salt || !keyHex) return false;
+      const keyBuf = Buffer.from(keyHex, "hex");
+      const test10k = crypto.pbkdf2Sync(password, salt, 1e4, 64, "sha512").toString("hex");
+      const test10kBuf = Buffer.from(test10k, "hex");
+      if (keyBuf.length === test10kBuf.length && crypto.timingSafeEqual(keyBuf, test10kBuf)) {
+        return true;
+      }
+      const test1k = crypto.pbkdf2Sync(password, salt, 1e3, 64, "sha512").toString("hex");
+      const test1kBuf = Buffer.from(test1k, "hex");
+      if (keyBuf.length === test1kBuf.length && crypto.timingSafeEqual(keyBuf, test1kBuf)) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
@@ -1332,20 +1398,6 @@ function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
   if (!token) {
-    if (!isProduction && process.env.ALLOW_DEMO_HEADER_BYPASS === "true") {
-      const demoRole = req.headers["x-demo-role"];
-      if (demoRole && ROLE_PERMISSIONS[demoRole]) {
-        console.warn(`[SECURITY WARNING] Allowing dev demo bypass for role: ${demoRole}`);
-        req.user = {
-          userId: `demo-${demoRole.toLowerCase()}`,
-          email: `${demoRole.toLowerCase()}@nga-inventra.com`,
-          name: `Demo ${demoRole.replace("_", " ")}`,
-          role: demoRole,
-          department: "Operations"
-        };
-        return next();
-      }
-    }
     res.status(401).json({ error: "Akses ditolak. Token otentikasi tidak ditemukan." });
     return;
   }
@@ -2207,13 +2259,17 @@ var DatabaseStore = class {
     this.saveDataDirect(this.data);
     return this.data;
   }
-  // --- Transaction Runner ---
+  // --- Transaction Runner with Atomic Rollback ---
   async runTransaction(fn) {
     await acquireLock();
+    const snapshot = JSON.stringify(this.data);
     try {
       const result = await fn(this);
       await this.persist();
       return result;
+    } catch (err) {
+      this.data = JSON.parse(snapshot);
+      throw err;
     } finally {
       releaseLock();
     }
@@ -2243,6 +2299,14 @@ var DatabaseStore = class {
   }
   findUserById(id) {
     return this.data.users.find((u) => u.id === id);
+  }
+  updateUserPassword(id, newPasswordHash) {
+    const user = this.data.users.find((u) => u.id === id);
+    if (user) {
+      user.passwordHash = newPasswordHash;
+      user.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      this.persist();
+    }
   }
   // --- Categories & Units ---
   getCategories() {
@@ -2428,8 +2492,8 @@ var DatabaseStore = class {
       const movementNumber = `MOV-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 7).replace("-", "")}-${Math.floor(100 + Math.random() * 900)}`;
       const movementDetails = [];
       for (const row of input.details) {
-        if (row.quantity <= 0) {
-          throw new Error(`Kuantitas item harus lebih besar dari 0.`);
+        if (row.quantity === 0 || row.quantity < 0 && input.type !== "ADJUSTMENT") {
+          throw new Error(`Kuantitas item harus valid dan lebih besar dari 0.`);
         }
         const item = db.data.items.find((i) => i.id === row.itemId);
         if (!item) {
@@ -2731,14 +2795,10 @@ var RepositoryManager = class {
 };
 var repoManager = new RepositoryManager();
 
-// server.ts
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path2.dirname(__filename);
-async function startServer() {
+// server/app.ts
+function createApp() {
   const app = express();
-  const PORT = process.env.PORT || 3e3;
-  const isProduction2 = process.env.NODE_ENV === "production";
-  await repoManager.init();
+  const isProduction2 = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
   app.use(express.json({ limit: "5mb" }));
   app.use((req, res, next) => {
     if (req.path.startsWith("/api") && req.method !== "GET") {
@@ -2757,6 +2817,7 @@ async function startServer() {
         status: isOk ? "UP" : "DEGRADED",
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         environment: isProduction2 ? "production" : "development",
+        runtime: process.env.VERCEL ? "vercel-serverless" : "node-process",
         activeEngine: repoManager.getActiveEngine(),
         database: dbHealth,
         uptime: process.uptime()
@@ -2781,6 +2842,15 @@ async function startServer() {
       if (!user || !verifyPassword(password, user.passwordHash)) {
         res.status(401).json({ error: "Email atau password salah." });
         return;
+      }
+      if (needsRehash(user.passwordHash)) {
+        try {
+          const upgradedHash = hashPassword(password);
+          await repo.updateUserPassword(user.id, upgradedHash);
+          console.log(`[AUTH SECURITY] Upgraded legacy password hash to OWASP PBKDF2-SHA512 for user ${user.email}`);
+        } catch (rehashErr) {
+          console.warn("[AUTH SECURITY] Failed to upgrade password hash:", rehashErr);
+        }
       }
       if (!user.isActive) {
         res.status(403).json({ error: "Akun Anda sedang dinonaktifkan. Silakan hubungi administrator." });
@@ -3002,7 +3072,7 @@ async function startServer() {
       const repo = await repoManager.getRepository();
       const newItem = await repo.createItem({
         sku,
-        barcode: barcode || void 0,
+        barcode: barcode || "",
         name,
         description: description || "",
         categoryId,
@@ -3392,9 +3462,10 @@ async function startServer() {
     const maskedInfo = parseAndMaskDatabaseUrl(process.env.DATABASE_URL);
     res.json({
       systemName: "NGA Inventra Enterprise Inventory & Asset Management",
-      version: "1.2.0-hostinger-ready",
+      version: "1.3.0-vercel-ready",
       status: "OPERATIONAL",
       activeEngine: repoManager.getActiveEngine(),
+      runtimeEnvironment: process.env.VERCEL ? "Vercel Cloud Serverless" : "Node.js Express Engine",
       databaseStatus: {
         configuredUrl: maskedInfo.maskedUrl,
         host: maskedInfo.host,
@@ -3421,6 +3492,20 @@ async function startServer() {
       }
     });
   });
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `Endpoint API '${req.method} ${req.path}' tidak ditemukan.` });
+  });
+  return app;
+}
+
+// server.ts
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path2.dirname(__filename);
+async function startServer() {
+  const PORT = process.env.PORT || 3e3;
+  const isProduction2 = process.env.NODE_ENV === "production";
+  await repoManager.init();
+  const app = createApp();
   if (!isProduction2) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -3428,9 +3513,10 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path2.resolve(__dirname, "dist")));
+    const distPath = path2.resolve(__dirname, "dist");
+    app.use(express2.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path2.resolve(__dirname, "dist", "index.html"));
+      res.sendFile(path2.resolve(distPath, "index.html"));
     });
   }
   const server = app.listen(Number(PORT), "0.0.0.0", () => {

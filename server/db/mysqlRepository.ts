@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { 
+import type { 
   User, 
   Category, 
   Unit, 

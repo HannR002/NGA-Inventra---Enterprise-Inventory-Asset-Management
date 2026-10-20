@@ -62,8 +62,11 @@ export function parseAndMaskDatabaseUrl(rawUrl?: string): {
   }
 }
 
-// 2. Singleton Prisma Client Manager
-let prismaClientInstance: PrismaClient | null = null;
+// 2. Serverless-Safe Singleton Prisma Client & Connection Pool Manager
+const globalForDb = globalThis as unknown as {
+  prismaClientInstance?: PrismaClient;
+  mysqlPoolInstance?: mysql.Pool;
+};
 
 export function getPrismaClient(): PrismaClient | null {
   const dbUrl = process.env.DATABASE_URL;
@@ -71,8 +74,8 @@ export function getPrismaClient(): PrismaClient | null {
     return null;
   }
 
-  if (!prismaClientInstance) {
-    prismaClientInstance = new PrismaClient({
+  if (!globalForDb.prismaClientInstance) {
+    globalForDb.prismaClientInstance = new PrismaClient({
       datasources: {
         db: {
           url: dbUrl,
@@ -82,24 +85,23 @@ export function getPrismaClient(): PrismaClient | null {
     });
   }
 
-  return prismaClientInstance;
+  return globalForDb.prismaClientInstance;
 }
 
 // 3. MySQL2 Pool for low-overhead healthchecks and raw queries
-let mysqlPoolInstance: mysql.Pool | null = null;
-
 export function getMysqlPool(): mysql.Pool | null {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) return null;
 
-  if (!mysqlPoolInstance) {
+  if (!globalForDb.mysqlPoolInstance) {
     try {
-      mysqlPoolInstance = mysql.createPool({
+      const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+      globalForDb.mysqlPoolInstance = mysql.createPool({
         uri: dbUrl,
         waitForConnections: true,
-        connectionLimit: 10,
-        maxIdle: 10,
-        idleTimeout: 60000,
+        connectionLimit: isServerless ? 3 : 10,
+        maxIdle: isServerless ? 2 : 10,
+        idleTimeout: 30000,
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000,
@@ -110,7 +112,7 @@ export function getMysqlPool(): mysql.Pool | null {
     }
   }
 
-  return mysqlPoolInstance;
+  return globalForDb.mysqlPoolInstance;
 }
 
 // 4. Real Database Health Check (executes SELECT 1 and SELECT VERSION())

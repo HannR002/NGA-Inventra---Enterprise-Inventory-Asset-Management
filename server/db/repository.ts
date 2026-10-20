@@ -1,7 +1,7 @@
 import { getPrismaClient, testDatabaseConnectivity } from './connection.ts';
 import { PrismaMySQLRepository } from './mysqlRepository.ts';
 import { dbStore, DatabaseStore } from './store.ts';
-import { 
+import type { 
   User, 
   Category, 
   Unit, 
